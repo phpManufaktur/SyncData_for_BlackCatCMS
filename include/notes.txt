@@ -3,6 +3,10 @@ syncData
 Ralf Hertsch, Stockholmer Str. 31, 13359 Berlin (Germany)
 http://phpManufaktur.de - ralf.hertsch@phpManufaktur.de
 
+Release 0.60
+2013-xx-xx
+published: first syncData beta release for BlackCat CMS
+
 Release 0.50
 2011-09-26
 published: first syncData beta release for LEPTON CMS

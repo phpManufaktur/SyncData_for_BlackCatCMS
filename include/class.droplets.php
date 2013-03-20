@@ -1,35 +1,47 @@
 <?php
 
 /**
- * kitTools
+ *   This program is free software; you can redistribute it and/or modify
+ *   it under the terms of the GNU General Public License as published by
+ *   the Free Software Foundation; either version 3 of the License, or (at
+ *   your option) any later version.
  * 
- * @author Ralf Hertsch (ralf.hertsch@phpmanufaktur.de)
- * @link http://phpmanufaktur.de
- * @copyright 2011
- * @license GNU GPL (http://www.gnu.org/licenses/gpl.html)
- * @version $Id$
+ *   This program is distributed in the hope that it will be useful, but
+ *   WITHOUT ANY WARRANTY; without even the implied warranty of
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ *   General Public License for more details.
+ *
+ *   You should have received a copy of the GNU General Public License
+ *   along with this program; if not, see <http://www.gnu.org/licenses/>.
+ *
+ *   @author          Black Cat Development
+ *   @copyright       2013, Black Cat Development
+ *   @link            http://blackcat-cms.org
+ *   @license         http://www.gnu.org/licenses/gpl.html
+ *   @category        CAT_Modules
+ *   @package         syncData
  * 
- * THIS SPECIAL EDITION IS BASED ON REGULAR KITTOOLS RELEASE 0.15!
  */
 
-// include LEPTON class.secure.php to protect this file and the whole CMS!
-$class_secure = '../../framework/class.secure.php';
-if (file_exists($class_secure)) {
-	include($class_secure);
-}
-else {
-	trigger_error(sprintf("[ <b>%s</b> ] Can't include LEPTON class.secure.php!", $_SERVER['SCRIPT_NAME']), E_USER_ERROR);
+if (defined('CAT_PATH')) {
+	if (defined('CAT_VERSION')) include(CAT_PATH.'/framework/class.secure.php');
+} elseif (file_exists($_SERVER['DOCUMENT_ROOT'].'/framework/class.secure.php')) {
+	include($_SERVER['DOCUMENT_ROOT'].'/framework/class.secure.php');
+} else {
+	$subs = explode('/', dirname($_SERVER['SCRIPT_NAME']));	$dir = $_SERVER['DOCUMENT_ROOT'];
+	$inc = false;
+	foreach ($subs as $sub) {
+		if (empty($sub)) continue; $dir .= '/'.$sub;
+		if (file_exists($dir.'/framework/class.secure.php')) {
+			include($dir.'/framework/class.secure.php'); $inc = true;	break;
+		}
+	}
+	if (!$inc) trigger_error(sprintf("[ <b>%s</b> ] Can't include class.secure.php!", $_SERVER['SCRIPT_NAME']), E_USER_ERROR);
 }
 
 if (!class_exists('dbconnectle')) {
-	// try to load regular dbConnect_LE
-	if (file_exists(CAT_PATH.'/modules/dbconnect_le/include.php')) {
-		require_once CAT_PATH.'/modules/dbconnect_le/include.php';
-	}
-	else {
 		// load dbConnect_LE from include directory
-		require_once CAT_PATH.'/modules/'.basename(dirname(__FILE__)).'/include/dbconnect_le/include.php';
-	}
+	require_once dirname(__FILE__).'/dbconnect_le/include.php';
 }
 
 class dbDroplets extends dbConnectLE { 
@@ -66,7 +78,7 @@ class checkDroplets {
 	var $error = '';
 	
 	public function __construct() {
-		$this->droplet_path = CAT_PATH . '/modules/' . basename(dirname(__FILE__)) . '/droplets/' ;
+		$this->droplet_path = CAT_PATH . '/modules/syncData/droplets/' ;
 	} // __construct()
 		
 	/**
