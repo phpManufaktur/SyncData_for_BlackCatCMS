@@ -41,6 +41,7 @@ if (defined('CAT_PATH')) {
 
 // ----- default config for Germany -----
 define('sync_cfg_time_zone', 'Europe/Berlin');
+define('sync_cfg_datetime_str',	'd.m.Y H:i');
 
 define('sync_label_cfg_auto_exec_msec',			'AutoExec in Millisekunden');
 define('sync_label_cfg_filemtime_diff_allowed',	'Erlaubte Zeitdifferenz');
@@ -123,10 +124,17 @@ $LANG = array(
     '<p>Please check! Is the selected backup of data right one -  should it be restored?</p><p>Define the settings for restore and then start the process.</p>' => '<p>Bitte prüfen Sie, ob es sich um die gewünschte Datensicherung handelt.</p><p>Legen Sie die Art der Rücksicherung fest und starten Sie danach den Restore.</p>',
     '<p>Edit the settings for <b>%s</b>.</p>' => '<p>Bearbeiten Sie die Einstellungen für <b>%s</b>.</p>',
     // message
+    '<p>There is nothing to do - task completed.</p>' => '<p>Es gibt nichts zu tun, Aktion beendet.</p>',
     '<p>The backup runs.</p><p>Please don´t close this window and <b>wait for the status message by syncData you will get after max. %s seconds!</b></p>'
         => '<p>Die Datensicherung wird ausgeführt.</p><p>Schliessen Sie dieses Fenster nicht und <b>warten Sie die Statusmeldung durch syncData nach max. %s Sekunden ab</b>.</p>',
     '<p>No backups were found in the directory <span class="sync_data_highlight">%s</span>, which can be used for a restore.</p><p></p>Transfer the archive files manually via FTP to the directory <span class="sync_data_highlight">%s</span> and you call this dialogue again.</p>'
         => '<p>Im Verzeichnis <span class="sync_data_highlight">%s</span> wurden keine Backups gefunden, die für eine Rücksicherung verwendet werden können.</p><p></p>Übertragen Sie die Archivdateien, die verwendet werden sollen, per FTP in das Verzeichnis <span class="sync_data_highlight">%s</span> und rufen Sie diesen Dialog anschließend erneut auf.</p>',
+    '<p style="color:red;"><em>AutoExec is active. The process will continue automatically in %d milliseconds.</em></p>'
+        => '<p style="color:red;"><em>AutoExec ist aktiv, der Vorgang wird in %d Millisekunden automatisch fortgesetzt.</em></p>',
+    '<p>The update isn´t complete because not all files could be secured within the maximum execution time for PHP scripts from <b>%s seconds</b>.</p><p>Until now, <b>%s</b> files updated with a circumference of <b>%s</b>.</p><p>Please click "Continue ..." to proceed the update.</p>%s'
+        => '<p>Die Aktualisierung konnte nicht abgeschlossen werden, da nicht alle Dateien innerhalb der maximalen Ausführungszeit für PHP Scripte von <b>%s Sekunden</b> gesichert werden konnten.</p><p>Bis jetzt wurden <b>%s</b> Dateien mit einem Umfang von <b>%s</b> aktualisiert.</p><p>Bitte klicken Sie auf "Fortsetzen ..." um die Aktualisierung fortzusetzen.</p>%s',
+    '<p>The backup was completed successfully.</p><p>There were <span class="sync_data_highlight">%s</span> files backed up with a circumference of <span class="sync_data_highlight">%s</span>.</p><p>See the full archive:<br /><a href="%s">%s</a>.'
+        => '<p>Die Datensicherung wurde erfolgreich abgeschlossen.</p><p>Es wurden <span class="sync_data_highlight">%s</span> Dateien mit einem Umfang von <span class="sync_data_highlight">%s</span> gesichert.</p><p>Sie finden das vollständige Archiv unter:<br /><a href="%s">%s</a>.',
 
     '- create new backup -' => '- neues Backup erstellen -',
     'backup of data from %s' => 'Datensicherung vom %s',

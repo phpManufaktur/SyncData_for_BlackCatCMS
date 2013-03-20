@@ -148,8 +148,10 @@ class syncBackend
         $this->img_url       = CAT_URL . '/modules/syncData/images/';
         date_default_timezone_set(sync_cfg_time_zone);
         $this->temp_path = sanitize_path(CAT_PATH . '/temp/syncData/');
-        if (!file_exists($this->temp_path))
+        if (!file_exists($this->temp_path)) {
             mkdir($this->temp_path, 0755, true);
+            $interface->createAccessFiles($this->temp_path);
+        }
         $this->memory_limit = $dbSyncDataCfg->getValue(dbSyncDataCfg::cfgMemoryLimit);
         ini_set("memory_limit", $this->memory_limit);
         $this->max_execution_time   = $dbSyncDataCfg->getValue(dbSyncDataCfg::cfgMaxExecutionTime);
@@ -756,15 +758,15 @@ class syncBackend
                     'text' => $dbSyncDataArchive->backup_type_array_text[$archive[dbSyncDataArchives::field_archive_type]]
                 ),
                 array(
-                    'label' => sync_label_total_files,
+                    'label' => $admin->lang->translate('Total files'),
                     'text' => $files['count']
                 ),
                 array(
-                    'label' => sync_label_total_size,
+                    'label' => $admin->lang->translate('Total size'),
                     'text' => $kitTools->bytes2Str($files['bytes'])
                 ),
                 array(
-                    'label' => sync_label_timestamp,
+                    'label' => $admin->lang->translate('Timestamp'),
                     'text' => date(sync_cfg_datetime_str, strtotime($archive[dbSyncDataArchives::field_timestamp]))
                 )
             );
@@ -859,6 +861,7 @@ class syncBackend
         global $dbSyncDataFile;
         global $kitTools;
         global $dbSyncDataCfg;
+        global $admin;
 
         $where = array(
             dbSyncDataJobs::field_id => $job_id
@@ -881,8 +884,8 @@ class syncBackend
             return false;
         }
         $auto_exec_msec = $dbSyncDataCfg->getValue(dbSyncDataCfg::cfgAutoExecMSec);
-        $auto_exec      = $auto_exec_msec > 0 ? sprintf(sync_msg_auto_exec_msec, $auto_exec_msec) : '';
-        $info           = sprintf(sync_msg_backup_to_be_continued, $this->max_execution_time, $files[0]['count'], $kitTools->bytes2Str($files[0]['bytes']), $auto_exec);
+        $auto_exec      = $auto_exec_msec > 0 ? sprintf($admin->lang->translate('<p style="color:red;"><em>AutoExec is active. The process will continue automatically in %d milliseconds.</em></p>'), $auto_exec_msec) : '';
+        $info           = sprintf($admin->lang->translate('<p>The update isn´t complete because not all files could be secured within the maximum execution time for PHP scripts from <b>%s seconds</b>.</p><p>Until now, <b>%s</b> files updated with a circumference of <b>%s</b>.</p><p>Please click "Continue ..." to proceed the update.</p>%s'), $this->max_execution_time, $files[0]['count'], $kitTools->bytes2Str($files[0]['bytes']), $auto_exec);
         $data           = array(
             'form' => array(
                 'name' => 'backup_continue',
@@ -925,6 +928,7 @@ class syncBackend
         global $kitTools;
         global $interface;
         global $dbSyncDataArchive;
+        global $admin;
 
         $where = array(
             dbSyncDataJobs::field_id => $job_id
@@ -969,7 +973,7 @@ class syncBackend
         }
 
         // Meldung zusammenstellen
-        $info = sprintf(sync_msg_backup_finished, $files[0][sprintf('COUNT(%s)', dbSyncDataFiles::field_file_name)], $kitTools->bytes2Str($files[0][sprintf('SUM(%s)', dbSyncDataFiles::field_file_size)]), str_replace(CAT_PATH, CAT_URL, $interface->getBackupPath() . $archive[dbSyncDataArchives::field_archive_name] . '.zip'), str_replace(CAT_PATH, CAT_URL, $interface->getBackupPath() . $archive[dbSyncDataArchives::field_archive_name] . '.zip'));
+        $info = sprintf($admin->lang->translate('<p>The backup was completed successfully.</p><p>There were <span class="sync_data_highlight">%s</span> files backed up with a circumference of <span class="sync_data_highlight">%s</span>.</p><p>See the full archive:<br /><a href="%s">%s</a>.'), $files[0][sprintf('COUNT(%s)', dbSyncDataFiles::field_file_name)], $kitTools->bytes2Str($files[0][sprintf('SUM(%s)', dbSyncDataFiles::field_file_size)]), str_replace(CAT_PATH, CAT_URL, $interface->getBackupPath() . $archive[dbSyncDataArchives::field_archive_name] . '.zip'), str_replace(CAT_PATH, CAT_URL, $interface->getBackupPath() . $archive[dbSyncDataArchives::field_archive_name] . '.zip'));
         $data = array(
             'form' => array(
                 'name' => 'backup_continue',
@@ -1004,6 +1008,7 @@ class syncBackend
     public function backupContinue()
     {
         global $interface;
+        global $admin;
 
         $job_id = isset($_REQUEST[dbSyncDataJobs::field_id]) ? $_REQUEST[dbSyncDataJobs::field_id] : -1;
 
@@ -1030,7 +1035,7 @@ class syncBackend
         else
         {
             // in allen anderen Faellen ist nichts zu tun
-            $this->setMessage(sync_msg_nothing_to_do);
+            $this->setMessage($admin->lang->translate('<p>There is nothing to do - task completed.</p>'));
             $data = array(
                 'form' => array(
                     'name' => 'backup_stop',
@@ -1075,6 +1080,9 @@ class syncBackend
             {
                 $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, sprintf(sync_error_mkdir, $interface->getBackupPath())));
                 return false;
+            }
+            else {
+                $interface->createAccessFiles($interface->getBackupPath());
             }
         }
         $arcs     = $interface->directoryTree($interface->getBackupPath());
@@ -1191,11 +1199,11 @@ class syncBackend
                 'text' => $dbSyncDataJob->job_type_array[$ini_data[syncDataInterface::section_general][dbSyncDataJobs::field_type]]
             ),
             array(
-                'label' => sync_label_total_files,
+                'label' => $admin->lang->translate('Total files'),
                 'text' => $ini_data[syncDataInterface::section_general]['total_files']
             ),
             array(
-                'label' => sync_label_total_size,
+                'label' => $admin->lang->translate('Total size'),
                 'text' => $kitTools->bytes2Str($ini_data[syncDataInterface::section_general]['total_size'])
             ),
             array(
@@ -1207,7 +1215,7 @@ class syncBackend
                 'text' => $ini_data[syncDataInterface::section_general][dbSyncDataJobs::field_last_message]
             ),
             array(
-                'label' => sync_label_timestamp,
+                'label' => $admin->lang->translate('Timestamp'),
                 'text' => date(sync_cfg_datetime_str, strtotime($ini_data[syncDataInterface::section_general][dbSyncDataJobs::field_timestamp]))
             )
         );
@@ -1444,6 +1452,7 @@ class syncBackend
         global $kitTools;
         global $dbSyncDataProtocol;
         global $dbSyncDataCfg;
+        global $admin;
 
         $where = array(
             dbSyncDataJobs::field_id => $job_id
@@ -1480,7 +1489,7 @@ class syncBackend
         }
 
         $auto_exec_msec = $dbSyncDataCfg->getValue(dbSyncDataCfg::cfgAutoExecMSec);
-        $auto_exec      = $auto_exec_msec > 0 ? sprintf(sync_msg_auto_exec_msec, $auto_exec_msec) : '';
+        $auto_exec      = $auto_exec_msec > 0 ? sprintf($admin->lang->translate('<p style="color:red;"><em>AutoExec is active. The process will continue automatically in %d milliseconds.</em></p>'), $auto_exec_msec) : '';
 
         $info = sprintf(sync_msg_restore_interrupted, $this->max_execution_time, $result_array[dbSyncDataProtocol::action_mysql_delete]['count'], $kitTools->bytes2Str($result_array[dbSyncDataProtocol::action_mysql_delete]['bytes']), $result_array[dbSyncDataProtocol::action_mysql_add]['count'], $kitTools->bytes2Str($result_array[dbSyncDataProtocol::action_mysql_add]['bytes']), $result_array[dbSyncDataProtocol::action_mysql_replace]['count'], $kitTools->bytes2Str($result_array[dbSyncDataProtocol::action_mysql_replace]['bytes']), $result_array[dbSyncDataProtocol::action_file_delete]['count'], $kitTools->bytes2Str($result_array[dbSyncDataProtocol::action_file_delete]['bytes']), $result_array[dbSyncDataProtocol::action_file_add]['count'], $kitTools->bytes2Str($result_array[dbSyncDataProtocol::action_file_add]['bytes']), $result_array[dbSyncDataProtocol::action_file_replace]['count'], $kitTools->bytes2Str($result_array[dbSyncDataProtocol::action_file_replace]['bytes']), $auto_exec);
 
@@ -1629,6 +1638,7 @@ class syncBackend
     public function updateContinue()
     {
         global $interface;
+        global $admin;
 
         $job_id = isset($_REQUEST[dbSyncDataJobs::field_id]) ? $_REQUEST[dbSyncDataJobs::field_id] : -1;
 
@@ -1655,7 +1665,7 @@ class syncBackend
         else
         {
             // in allen anderen Faellen ist nichts zu tun
-            $this->setMessage(sync_msg_nothing_to_do);
+            $this->setMessage($admin->lang->translate('<p>There is nothing to do - task completed.</p>'));
             $data = array(
                 'form' => array(
                     'name' => 'update_stop',
@@ -1695,6 +1705,7 @@ class syncBackend
         global $dbSyncDataFile;
         global $kitTools;
         global $dbSyncDataCfg;
+        global $admin;
 
         $where = array(
             dbSyncDataJobs::field_id => $job_id
@@ -1717,9 +1728,9 @@ class syncBackend
         }
 
         $auto_exec_msec = $dbSyncDataCfg->getValue(dbSyncDataCfg::cfgAutoExecMSec);
-        $auto_exec      = $auto_exec_msec > 0 ? sprintf(sync_msg_auto_exec_msec, $auto_exec_msec) : '';
+        $auto_exec      = $auto_exec_msec > 0 ? sprintf($admin->lang->translate('<p style="color:red;"><em>AutoExec is active. The process will continue automatically in %d milliseconds.</em></p>'), $auto_exec_msec) : '';
 
-        $info = sprintf(sync_msg_update_to_be_continued, $this->max_execution_time, $files[0]['count'], $kitTools->bytes2Str($files[0]['bytes']), $auto_exec);
+        $info = sprintf($admin->lang->translate('<p>The update isn´t complete because not all files could be secured within the maximum execution time for PHP scripts from <b>%s seconds</b>.</p><p>Until now, <b>%s</b> files updated with a circumference of <b>%s</b>.</p><p>Please click "Continue ..." to proceed the update.</p>%s'), $this->max_execution_time, $files[0]['count'], $kitTools->bytes2Str($files[0]['bytes']), $auto_exec);
         $data = array(
             'form' => array(
                 'name' => 'update_continue',
@@ -1762,6 +1773,7 @@ class syncBackend
         global $kitTools;
         global $interface;
         global $dbSyncDataArchive;
+        global $admin;
 
         $where = array(
             dbSyncDataJobs::field_id => $job_id
@@ -1806,7 +1818,7 @@ class syncBackend
         }
 
         // Meldung zusammenstellen
-        $info = sprintf(sync_msg_update_finished, $files[0]['count'], $kitTools->bytes2Str($files[0]['bytes']), str_replace(CAT_PATH, CAT_URL, $interface->getBackupPath() . $archive[dbSyncDataArchives::field_archive_name]), str_replace(CAT_PATH, CAT_URL, $interface->getBackupPath() . $archive[dbSyncDataArchives::field_archive_name]));
+        $info = sprintf($admin->lang->translate('<p>The backup was completed successfully.</p><p>There were <span class="sync_data_highlight">%s</span> files backed up with a circumference of <span class="sync_data_highlight">%s</span>.</p><p>See the full archive:<br /><a href="%s">%s</a>.'), $files[0]['count'], $kitTools->bytes2Str($files[0]['bytes']), str_replace(CAT_PATH, CAT_URL, $interface->getBackupPath() . $archive[dbSyncDataArchives::field_archive_name]), str_replace(CAT_PATH, CAT_URL, $interface->getBackupPath() . $archive[dbSyncDataArchives::field_archive_name]));
         $data = array(
             'form' => array(
                 'name' => 'update_finished',
