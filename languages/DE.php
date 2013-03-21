@@ -115,6 +115,10 @@ $LANG = array(
     'Choose type of backup' => 'Wählen Sie den gewünschten Backup-Typ',
     'Give the archive a name' => 'Geben Sie dem Archiv einen Namen',
 
+    // errors
+    '<p>The archive <span class="sync_data_highlight">%s</span> is not a valid syncData archive - missing file <span class="sync_data_highlight">sync_data.ini</span>!</p>'
+        => '<p>Das Archiv <span class="sync_data_highlight">%s</span> ist kein gültiges syncData Archiv, die Datei <span class="sync_data_highlight">sync_data.ini</span> fehlt.</p>',
+
     // intro
     '<p>Create a new backup or select a backup which will be updated.</p>' => '<p>Erstellen Sie ein neues Backup oder wählen Sie ein Backup aus, das aktualisiert werden soll.</p>',
     '<p>Select the type of data backup and give the archive a name.</p>' => '<p>Wählen Sie die Art der Datensicherung aus und geben Sie dem Archiv einen Namen.</p>',

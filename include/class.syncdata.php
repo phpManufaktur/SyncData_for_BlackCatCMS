@@ -14,14 +14,17 @@
 
 // include LEPTON class.secure.php to protect this file and the whole CMS!
 $class_secure = '../../framework/class.secure.php';
-if (file_exists($class_secure)) {
+if (file_exists($class_secure))
+{
 	include($class_secure);
 }
-else {
+else
+{
 	trigger_error(sprintf("[ <b>%s</b> ] Can't include LEPTON class.secure.php!", $_SERVER['SCRIPT_NAME']), E_USER_ERROR);
 }
 
-class dbSyncDataCfg extends dbConnectLE {
+class dbSyncDataCfg extends dbConnectLE
+{
 	
 	const field_id						= 'cfg_id';
 	const field_name					= 'cfg_name';
@@ -76,51 +79,125 @@ class dbSyncDataCfg extends dbConnectLE {
   const cfgServerURL						= 'cfgServerURL';
   
   public $config_array = array(
-  	array('sync_label_cfg_max_execution_time', self::cfgMaxExecutionTime, self::type_integer, '30', 'sync_desc_cfg_max_execution_time'),
-  	array('sync_label_cfg_ignore_directories', self::cfgIgnoreDirectories, self::type_list, '/temp/,/modules/dwoo/dwoo-1.1.1/dwoo/cache/,/modules/dwoo/dwoo-1.1.1/dwoo/compiled/,/modules/sync_data/,/media/sync_data/', 'sync_desc_cfg_ignore_directories'),
-  	array('sync_label_cfg_memory_limit', self::cfgMemoryLimit, self::type_string, '256M', 'sync_desc_cfg_memory_limit'),
-  	array('sync_label_cfg_limit_execution_time', self::cfgLimitExecutionTime, self::type_integer, '25', 'sync_desc_cfg_limit_execution_time'),
-  	array('sync_label_cfg_ignore_tables', self::cfgIgnoreTables, self::type_list, 'mod_sync_data_archives,mod_sync_data_config,mod_sync_data_cronjob_data,mod_sync_data_files,mod_sync_data_jobs,mod_sync_data_protocol,users', 'sync_desc_cfg_ignore_tables'),
-  	array('sync_label_cfg_ignore_file_extensions', self::cfgIgnoreFileExtensions, self::type_array, 'buildpath,project,tmp', 'sync_desc_cfg_ignore_file_extensions'),
-  	array('sync_label_cfg_filemtime_diff_allowed', self::cfgFileMTimeDiffAllowed, self::type_integer, '1', 'sync_desc_cfg_filemtime_diff_allowed'),
-  	array('sync_label_cfg_auto_exec_msec', self::cfgAutoExecMSec, self::type_integer, '5000', 'sync_desc_cfg_auto_exec_msec'),
-  	array('sync_label_cfg_server_active', self::cfgServerActive, self::type_boolean, '0', 'sync_desc_cfg_server_active'), 
-  	array('sync_label_cfg_server_archive_id', self::cfgServerArchiveID, self::type_string, '', 'sync_desc_cfg_server_archive_id'),
-  	array('sync_label_cfg_server_url', self::cfgServerURL, self::type_string, '', 'sync_desc_cfg_server_url') 
+        array(
+            'sync_label_cfg_max_execution_time',
+            self::cfgMaxExecutionTime,
+            self::type_integer,
+            '30',
+            'sync_desc_cfg_max_execution_time'
+        ),
+        array(
+            'sync_label_cfg_ignore_directories',
+            self::cfgIgnoreDirectories,
+            self::type_list,
+            '/temp/,/modules/lib_dwoo/,/modules/syncData/,/media/syncData/',
+            'sync_desc_cfg_ignore_directories'
+        ),
+        array(
+            'sync_label_cfg_memory_limit',
+            self::cfgMemoryLimit,
+            self::type_string,
+            '256M',
+            'sync_desc_cfg_memory_limit'
+        ),
+        array(
+            'sync_label_cfg_limit_execution_time',
+            self::cfgLimitExecutionTime,
+            self::type_integer,
+            '25',
+            'sync_desc_cfg_limit_execution_time'
+        ),
+        array(
+            'sync_label_cfg_ignore_tables',
+            self::cfgIgnoreTables,
+            self::type_list,
+            'mod_sync_data_archives,mod_sync_data_config,mod_sync_data_cronjob_data,mod_sync_data_files,mod_sync_data_jobs,mod_sync_data_protocol,users',
+            'sync_desc_cfg_ignore_tables'
+        ),
+        array(
+            'sync_label_cfg_ignore_file_extensions',
+            self::cfgIgnoreFileExtensions,
+            self::type_array,
+            'buildpath,project,tmp',
+            'sync_desc_cfg_ignore_file_extensions'
+        ),
+        array(
+            'sync_label_cfg_filemtime_diff_allowed',
+            self::cfgFileMTimeDiffAllowed,
+            self::type_integer,
+            '1',
+            'sync_desc_cfg_filemtime_diff_allowed'
+        ),
+        array(
+            'sync_label_cfg_auto_exec_msec',
+            self::cfgAutoExecMSec,
+            self::type_integer,
+            '5000',
+            'sync_desc_cfg_auto_exec_msec'
+        ),
+        array(
+            'sync_label_cfg_server_active',
+            self::cfgServerActive,
+            self::type_boolean,
+            '0',
+            'sync_desc_cfg_server_active'
+        ),
+        array(
+            'sync_label_cfg_server_archive_id',
+            self::cfgServerArchiveID,
+            self::type_string,
+            '',
+            'sync_desc_cfg_server_archive_id'
+        ),
+        array(
+            'sync_label_cfg_server_url',
+            self::cfgServerURL,
+            self::type_string,
+            '',
+            'sync_desc_cfg_server_url'
+        )
   );  
   
-  public function __construct($createTables = false) {
+    public function __construct($createTables = false)
+    {
   	$this->createTables = $createTables;
   	parent::__construct();
   	$this->setTableName('mod_sync_data_config');
   	$this->addFieldDefinition(self::field_id, "INT(11) NOT NULL AUTO_INCREMENT", true);
   	$this->addFieldDefinition(self::field_name, "VARCHAR(32) NOT NULL DEFAULT ''");
-  	$this->addFieldDefinition(self::field_type, "TINYINT UNSIGNED NOT NULL DEFAULT '".self::type_undefined."'");
+        $this->addFieldDefinition(self::field_type, "TINYINT UNSIGNED NOT NULL DEFAULT '" . self::type_undefined . "'");
   	$this->addFieldDefinition(self::field_value, "TEXT NOT NULL DEFAULT ''", false, false, true);
   	$this->addFieldDefinition(self::field_label, "VARCHAR(64) NOT NULL DEFAULT 'sync_str_undefined'");
   	$this->addFieldDefinition(self::field_description, "VARCHAR(255) NOT NULL DEFAULT 'sync_str_undefined'");
-  	$this->addFieldDefinition(self::field_status, "TINYINT UNSIGNED NOT NULL DEFAULT '".self::status_active."'");
+        $this->addFieldDefinition(self::field_status, "TINYINT UNSIGNED NOT NULL DEFAULT '" . self::status_active . "'");
   	$this->addFieldDefinition(self::field_update_by, "VARCHAR(32) NOT NULL DEFAULT 'SYSTEM'");
   	$this->addFieldDefinition(self::field_update_when, "DATETIME NOT NULL DEFAULT '0000-00-00 00:00:00'");
-  	$this->setIndexFields(array(self::field_name));
+        $this->setIndexFields(array(
+            self::field_name
+        ));
   	$this->setAllowedHTMLtags('<a><abbr><acronym><span>');
   	$this->checkFieldDefinitions();
   	// Tabelle erstellen
-  	if ($this->createTables) {
-  		if (!$this->sqlTableExists()) {
-  			if (!$this->sqlCreateTable()) {
+        if ($this->createTables)
+        {
+            if (!$this->sqlTableExists())
+            {
+                if (!$this->sqlCreateTable())
+                {
   				$this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, $this->getError()));
   			}
   		}
   	}
   	// Default Werte garantieren
-  	if ($this->sqlTableExists()) {
+        if ($this->sqlTableExists())
+        {
   		$this->checkConfig();
   	}
   	date_default_timezone_set(sync_cfg_time_zone);
   } // __construct()
   
-  public function setMessage($message) {
+    public function setMessage($message)
+    {
     $this->message = $message;
   } // setMessage()
 
@@ -129,7 +206,8 @@ class dbSyncDataCfg extends dbConnectLE {
     * 
     * @return STR $this->message
     */
-  public function getMessage() {
+    public function getMessage()
+    {
     return $this->message;
   } // getMessage()
 
@@ -138,7 +216,8 @@ class dbSyncDataCfg extends dbConnectLE {
     * 
     * @return BOOL
     */
-  public function isMessage() {
+    public function isMessage()
+    {
     return (bool) !empty($this->message);
   } // isMessage
   
@@ -151,15 +230,18 @@ class dbSyncDataCfg extends dbConnectLE {
    * @return BOOL Ergebnis
    * 
    */
-  public function setValueByName($new_value, $name) {
+    public function setValueByName($new_value, $name)
+    {
   	$where = array();
   	$where[self::field_name] = $name;
   	$config = array();
-  	if (!$this->sqlSelectRecord($where, $config)) {
+        if (!$this->sqlSelectRecord($where, $config))
+        {
   		$this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, $this->getError()));
   		return false;
   	}
-  	if (sizeof($config) < 1) {
+        if (sizeof($config) < 1)
+        {
   		$this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, sprintf(sync_error_cfg_name, $name)));
   		return false;
   	}
@@ -173,8 +255,9 @@ class dbSyncDataCfg extends dbConnectLE {
    * @param STR $path
    * @return STR
    */
-  public function addSlash($path) {
-  	$path = substr($path, strlen($path)-1, 1) == "/" ? $path : $path."/";
+    public function addSlash($path)
+    {
+        $path = substr($path, strlen($path) - 1, 1) == "/" ? $path : $path . "/";
   	return $path;  
   }
   
@@ -186,14 +269,16 @@ class dbSyncDataCfg extends dbConnectLE {
    * @param STR $string
    * @return FLOAT
    */
-  public function str2float($string) {
+    public function str2float($string)
+    {
   	$string = str_replace('.', '', $string);
 		$string = str_replace(',', '.', $string);
 		$float = floatval($string);
 		return $float;
   }
 
-  public function str2int($string) {
+    public function str2int($string)
+    {
   	$string = str_replace('.', '', $string);
 		$string = str_replace(',', '.', $string);
 		$int = intval($string);
@@ -206,13 +291,18 @@ class dbSyncDataCfg extends dbConnectLE {
 	 * @param STR $email
 	 * @return BOOL
 	 */
-	public function validateEMail($email) {
+    public function validateEMail($email)
+    {
 		//if(eregi("^([0-9a-zA-Z]+[-._+&])*[0-9a-zA-Z]+@([-0-9a-zA-Z]+[.])+[a-zA-Z]{2,6}$", $email)) {
 		// PHP 5.3 compatibility - eregi is deprecated
-		if(preg_match("/^([0-9a-zA-Z]+[-._+&])*[0-9a-zA-Z]+@([-0-9a-zA-Z]+[.])+[a-zA-Z]{2,6}$/i", $email)) {
-			return true; }
-		else {
-			return false; }
+        if (preg_match("/^([0-9a-zA-Z]+[-._+&])*[0-9a-zA-Z]+@([-0-9a-zA-Z]+[.])+[a-zA-Z]{2,6}$/i", $email))
+        {
+            return true;
+        }
+        else
+        {
+            return false;
+        }
 	}
   
   /**
@@ -223,16 +313,19 @@ class dbSyncDataCfg extends dbConnectLE {
    * 
    * @return BOOL Ergebnis
    */
-  public function setValue($new_value, $id) {
+    public function setValue($new_value, $id)
+    {
   	$value = '';
   	$where = array();
   	$where[self::field_id] = $id;
   	$config = array();
-  	if (!$this->sqlSelectRecord($where, $config)) {
+        if (!$this->sqlSelectRecord($where, $config))
+        {
   		$this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, $this->getError()));
   		return false;
   	}
-  	if (sizeof($config) < 1) {
+        if (sizeof($config) < 1)
+        {
   		$this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, sprintf(sync_error_cfg_id, $id)));
   		return false;
   	}
@@ -242,7 +335,8 @@ class dbSyncDataCfg extends dbConnectLE {
   		// Funktion geht davon aus, dass $value als STR uebergeben wird!!!
   		$worker = explode(",", $new_value);
   		$data = array();
-  		foreach ($worker as $item) {
+                foreach ($worker as $item)
+                {
   			$data[] = trim($item);
   		};
   		$value = implode(",", $data);  			
@@ -252,10 +346,12 @@ class dbSyncDataCfg extends dbConnectLE {
   		$value = (int) $value;
   		break;
   	case self::type_email:
-  		if ($this->validateEMail($new_value)) {
+                if ($this->validateEMail($new_value))
+                {
   			$value = trim($new_value);
   		}
-  		else {
+                else
+                {
   			$this->setMessage(sprintf(sync_msg_invalid_email, $new_value));
   			return false;			
   		}
@@ -279,9 +375,11 @@ class dbSyncDataCfg extends dbConnectLE {
   		$lines = nl2br($new_value); 
   		$lines = explode('<br />', $lines);
   		$val = array();
-  		foreach ($lines as $line) {
+                foreach ($lines as $line)
+                {
   			$line = trim($line);
-  			if (!empty($line)) $val[] = $line;
+                    if (!empty($line))
+                        $val[] = $line;
   		}
   		$value = implode(",", $val);
   		break;
@@ -290,7 +388,8 @@ class dbSyncDataCfg extends dbConnectLE {
   	$config[self::field_value] = (string) $value;
   	$config[self::field_update_by] = 'SYSTEM';
   	$config[self::field_update_when] = date('Y-m-d H:i:s');
-  	if (!$this->sqlUpdateRecord($config, $where)) {
+        if (!$this->sqlUpdateRecord($config, $where))
+        {
   		$this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, $this->getError()));
   		return false;
   	}
@@ -304,16 +403,19 @@ class dbSyncDataCfg extends dbConnectLE {
    * 
    * @return WERT entsprechend des TYP
    */
-  public function getValue($name) {
+    public function getValue($name)
+    {
   	$result = '';
   	$where = array();
   	$where[self::field_name] = $name;
   	$config = array();
-  	if (!$this->sqlSelectRecord($where, $config)) {
+        if (!$this->sqlSelectRecord($where, $config))
+        {
   		$this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, $this->getError()));
   		return false;
   	}
-  	if (sizeof($config) < 1) {
+        if (sizeof($config) < 1)
+        {
   		$this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, sprintf(sync_error_cfg_name, $name)));
   		return false;
   	}
@@ -348,16 +450,20 @@ class dbSyncDataCfg extends dbConnectLE {
   	return $result;
   } // getValue()
   
-  public function checkConfig() {
-  	foreach ($this->config_array as $item) {
+    public function checkConfig()
+    {
+        foreach ($this->config_array as $item)
+        {
   		$where = array();
   		$where[self::field_name] = $item[1];
   		$check = array();
-  		if (!$this->sqlSelectRecord($where, $check)) {
+            if (!$this->sqlSelectRecord($where, $check))
+            {
   			$this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, $this->getError()));
   			return false;
   		}
-  		if (sizeof($check) < 1) {
+            if (sizeof($check) < 1)
+            {
   			// Eintrag existiert nicht
   			$data = array();
   			$data[self::field_label] = $item[0];
@@ -367,7 +473,8 @@ class dbSyncDataCfg extends dbConnectLE {
   			$data[self::field_description] = $item[4];
   			$data[self::field_update_when] = date('Y-m-d H:i:s');
   			$data[self::field_update_by] = 'SYSTEM';
-  			if (!$this->sqlInsertRecord($data)) {
+                if (!$this->sqlInsertRecord($data))
+                {
   				$this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, $this->getError()));
   				return false;
   			}
@@ -378,7 +485,8 @@ class dbSyncDataCfg extends dbConnectLE {
 	  
 } // class dbSyncDataCfg
 
-class dbSyncDataJobs extends dbConnectLE {
+class dbSyncDataJobs extends dbConnectLE
+{
 	
 	const field_id										= 'job_id';
 	const field_start									= 'job_start';
@@ -415,11 +523,7 @@ class dbSyncDataJobs extends dbConnectLE {
 	const mode_changed_date_size	= 2;
 	const mode_changed_binary			= 4;
 	
-	public $job_type_array = array(
-		self::type_backup_complete => 'complete (database and files)',
-		self::type_backup_mysql    => 'only database (MySQL)',
-		self::type_backup_files    => 'only files',
-	);
+    public $job_type_array = array(self::type_backup_complete => 'complete (database and files)', self::type_backup_mysql => 'only database (MySQL)', self::type_backup_files => 'only files');
 	
 	
 	const status_undefined		= 1;
@@ -435,7 +539,8 @@ class dbSyncDataJobs extends dbConnectLE {
 	
 	private $createTables 		= false;
 	
-	public function __construct($createTables = false) {
+    public function __construct($createTables = false)
+    {
   	$this->createTables = $createTables;
   	parent::__construct();
   	$this->setTableName('mod_sync_data_jobs');
@@ -443,17 +548,17 @@ class dbSyncDataJobs extends dbConnectLE {
   	$this->addFieldDefinition(self::field_start, "DATETIME NOT NULL DEFAULT '0000-00-00 00:00:00'");
   	$this->addFieldDefinition(self::field_end, "DATETIME NOT NULL DEFAULT '0000-00-00 00:00:00'");
   	$this->addFieldDefinition(self::field_total_time, "FLOAT NOT NULL DEFAULT '0'");
-  	$this->addFieldDefinition(self::field_type, "INT(11) NOT NULL DEFAULT '".self::type_undefined."'");
-  	$this->addFieldDefinition(self::field_status, "INT(11) NOT NULL DEFAULT '".self::status_undefined."'");
+        $this->addFieldDefinition(self::field_type, "INT(11) NOT NULL DEFAULT '" . self::type_undefined . "'");
+        $this->addFieldDefinition(self::field_status, "INT(11) NOT NULL DEFAULT '" . self::status_undefined . "'");
   	$this->addFieldDefinition(self::field_errors, "INT(11) NOT NULL DEFAULT '0'");
   	$this->addFieldDefinition(self::field_last_error, "TEXT NOT NULL DEFAULT ''");
   	$this->addFieldDefinition(self::field_last_message, "TEXT NOT NULL DEFAULT ''");
   	$this->addFieldDefinition(self::field_archive_id, "VARCHAR(40) NOT NULL DEFAULT ''");
   	$this->addFieldDefinition(self::field_archive_number, "INT(11) NOT NULL DEFAULT '1'");
-  	$this->addFieldDefinition(self::field_next_action, "TINYINT NOT NULL DEFAULT '".self::next_action_none."'");
+        $this->addFieldDefinition(self::field_next_action, "TINYINT NOT NULL DEFAULT '" . self::next_action_none . "'");
   	$this->addFieldDefinition(self::field_next_file, "TEXT NOT NULL DEFAULT ''");
   	$this->addFieldDefinition(self::field_archive_file, "TEXT NOT NULL DEFAULT ''");
-  	$this->addFieldDefinition(self::field_restore_mode, "TINYINT NOT NULL DEFAULT '".self::mode_changed_date_size."'");
+        $this->addFieldDefinition(self::field_restore_mode, "TINYINT NOT NULL DEFAULT '" . self::mode_changed_date_size . "'");
   	$this->addFieldDefinition(self::field_replace_table_prefix, "TINYINT NOT NULL DEFAULT '1'");
   	$this->addFieldDefinition(self::field_replace_wb_url, "TINYINT NOT NULL DEFAULT '1'");
   	$this->addFieldDefinition(self::field_ignore_config, "TINYINT NOT NULL DEFAULT '1'");
@@ -461,12 +566,19 @@ class dbSyncDataJobs extends dbConnectLE {
   	$this->addFieldDefinition(self::field_delete_files, "TINYINT NOT NULL DEFAULT '0'");
   	$this->addFieldDefinition(self::field_delete_tables, "TINYINT NOT NULL DEFAULT '0'");
   	$this->addFieldDefinition(self::field_timestamp, "TIMESTAMP"); 
-  	$this->setIndexFields(array(self::field_type, self::field_status, self::field_archive_id));
+        $this->setIndexFields(array(
+            self::field_type,
+            self::field_status,
+            self::field_archive_id
+        ));
   	$this->checkFieldDefinitions();
   	// Tabelle erstellen
-  	if ($this->createTables) {
-  		if (!$this->sqlTableExists()) {
-  			if (!$this->sqlCreateTable()) {
+        if ($this->createTables)
+        {
+            if (!$this->sqlTableExists())
+            {
+                if (!$this->sqlCreateTable())
+                {
   				$this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, $this->getError()));
   			}
   		}
@@ -477,7 +589,8 @@ class dbSyncDataJobs extends dbConnectLE {
 } // class dbSyncDataJob
 
 
-class dbSyncDataArchives extends dbConnectLE {
+class dbSyncDataArchives extends dbConnectLE
+{
 	
 	const field_id							= 'id';
 	const field_archive_id			= 'archive_id';
@@ -496,24 +609,17 @@ class dbSyncDataArchives extends dbConnectLE {
 	const backup_type_mysql			= 2;
 	const backup_type_files			= 4;
 	
-	public $backup_type_array = array(
-		array('key' => self::backup_type_complete, 	'value' => 'complete (database and files)'),
-		array('key' => self::backup_type_mysql,		'value' => 'only database (MySQL)'),
-		array('key' => self::backup_type_files,		'value' => 'only files')
-	);
+    public $backup_type_array = array(array('key' => self::backup_type_complete, 'value' => 'complete (database and files)'), array('key' => self::backup_type_mysql, 'value' => 'only database (MySQL)'), array('key' => self::backup_type_files, 'value' => 'only files'));
 	
-	public $backup_type_array_text = array(
-		self::backup_type_complete => 'complete (database and files)',
-		self::backup_type_mysql    => 'only database (MySQL)',
-		self::backup_type_files    => 'only files',
-	);
+    public $backup_type_array_text = array(self::backup_type_complete => 'complete (database and files)', self::backup_type_mysql => 'only database (MySQL)', self::backup_type_files => 'only files');
 	
 	const status_active					= 1;
 	const status_deleted				= 2;
 	
 	private $createTables 		= false;
 	
-	public function __construct($createTables = false) {
+    public function __construct($createTables = false)
+    {
   	$this->createTables = $createTables;
   	parent::__construct();
   	$this->setTableName('mod_sync_data_archives');
@@ -522,14 +628,17 @@ class dbSyncDataArchives extends dbConnectLE {
   	$this->addFieldDefinition(self::field_archive_number, "INT(11) NOT NULL DEFAULT '1'");
   	$this->addFieldDefinition(self::field_archive_date, "DATETIME NOT NULL DEFAULT '0000-00-00 00:00:00'");
   	$this->addFieldDefinition(self::field_archive_name, "VARCHAR(255) NOT NULL DEFAULT ''");
-  	$this->addFieldDefinition(self::field_archive_type, "INT(11) NOT NULL DEFAULT '".self::archive_type_backup."'");
-  	$this->addFieldDefinition(self::field_status, "INT(11) NOT NULL DEFAULT '".self::status_active."'");
+        $this->addFieldDefinition(self::field_archive_type, "INT(11) NOT NULL DEFAULT '" . self::archive_type_backup . "'");
+        $this->addFieldDefinition(self::field_status, "INT(11) NOT NULL DEFAULT '" . self::status_active . "'");
   	$this->addFieldDefinition(self::field_timestamp, "TIMESTAMP"); 
   	$this->checkFieldDefinitions();
   	// Tabelle erstellen
-  	if ($this->createTables) {
-  		if (!$this->sqlTableExists()) {
-  			if (!$this->sqlCreateTable()) {
+        if ($this->createTables)
+        {
+            if (!$this->sqlTableExists())
+            {
+                if (!$this->sqlCreateTable())
+                {
   				$this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, $this->getError()));
   			}
   		}
@@ -539,7 +648,8 @@ class dbSyncDataArchives extends dbConnectLE {
   
 } // class dbSyncDataArchive
 
-class dbSyncDataFiles extends dbConnectLE {
+class dbSyncDataFiles extends dbConnectLE
+{
 	
 	const field_id							= 'id';
 	const field_archive_id			= 'archive_id';
@@ -569,28 +679,32 @@ class dbSyncDataFiles extends dbConnectLE {
 	
 	private $createTables 		= false;
 	
-	public function __construct($createTables = false) {
+    public function __construct($createTables = false)
+    {
   	$this->createTables = $createTables;
   	parent::__construct();
   	$this->setTableName('mod_sync_data_files');
   	$this->addFieldDefinition(self::field_id, "INT(11) NOT NULL AUTO_INCREMENT", true);
   	$this->addFieldDefinition(self::field_archive_id, "VARCHAR(40) NOT NULL DEFAULT ''");
   	$this->addFieldDefinition(self::field_archive_number, "INT(11) NOT NULL DEFAULT '1'");
-  	$this->addFieldDefinition(self::field_file_type, "INT(11) NOT NULL DEFAULT '".self::file_type_unknown."'");
+        $this->addFieldDefinition(self::field_file_type, "INT(11) NOT NULL DEFAULT '" . self::file_type_unknown . "'");
   	$this->addFieldDefinition(self::field_file_path, "TEXT NOT NULL DEFAULT ''");
   	$this->addFieldDefinition(self::field_file_name, "VARCHAR(255) NOT NULL DEFAULT ''");
   	$this->addFieldDefinition(self::field_file_checksum, "VARCHAR(40) NOT NULL DEFAULT ''");
   	$this->addFieldDefinition(self::field_file_date, "DATETIME NOT NULL DEFAULT '0000-00-00 00:00:00'");
   	$this->addFieldDefinition(self::field_file_size, "INT(11) NOT NULL DEFAULT '0'");
-  	$this->addFieldDefinition(self::field_action, "INT(11) NOT NULL DEFAULT '".self::action_add."'");
-  	$this->addFieldDefinition(self::field_status, "TINYINT NOT NULL DEFAULT '".self::status_ok."'");
+        $this->addFieldDefinition(self::field_action, "INT(11) NOT NULL DEFAULT '" . self::action_add . "'");
+        $this->addFieldDefinition(self::field_status, "TINYINT NOT NULL DEFAULT '" . self::status_ok . "'");
   	$this->addFieldDefinition(self::field_error_msg, "TEXT NOT NULL DEFAULT ''");
   	$this->addFieldDefinition(self::field_timestamp, "TIMESTAMP"); 
   	$this->checkFieldDefinitions();
   	// Tabelle erstellen
-  	if ($this->createTables) {
-  		if (!$this->sqlTableExists()) {
-  			if (!$this->sqlCreateTable()) {
+        if ($this->createTables)
+        {
+            if (!$this->sqlTableExists())
+            {
+                if (!$this->sqlCreateTable())
+                {
   				$this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, $this->getError()));
   			}
   		}
@@ -600,7 +714,8 @@ class dbSyncDataFiles extends dbConnectLE {
 	
 } // class dbSyncDataFiles
 
-class dbSyncDataProtocol extends dbConnectLE {
+class dbSyncDataProtocol extends dbConnectLE
+{
 	
 	const field_id							= 'id';
 	const field_archive_id			= 'archive_id';
@@ -634,7 +749,8 @@ class dbSyncDataProtocol extends dbConnectLE {
 	 * 
 	 * @param BOOL $createTables
 	 */
-	public function __construct($createTables = false) {
+    public function __construct($createTables = false)
+    {
   	$this->createTables = $createTables;
   	parent::__construct();
   	$this->setTableName('mod_sync_data_protocol');
@@ -645,14 +761,17 @@ class dbSyncDataProtocol extends dbConnectLE {
   	$this->addFieldDefinition(self::field_text, "TEXT NOT NULL DEFAULT ''");
   	$this->addFieldDefinition(self::field_file, "TEXT NOT NULL DEFAULT ''");
   	$this->addFieldDefinition(self::field_size, "INT(11) NOT NULL DEFAULT '-1'");
-  	$this->addFieldDefinition(self::field_action, "INT(11) NOT NULL DEFAULT '".self::action_unknown."'");
-  	$this->addFieldDefinition(self::field_status, "TINYINT NOT NULL DEFAULT '".self::status_ok."'");
+        $this->addFieldDefinition(self::field_action, "INT(11) NOT NULL DEFAULT '" . self::action_unknown . "'");
+        $this->addFieldDefinition(self::field_status, "TINYINT NOT NULL DEFAULT '" . self::status_ok . "'");
   	$this->addFieldDefinition(self::field_timestamp, "TIMESTAMP"); 
   	$this->checkFieldDefinitions();
   	// Tabelle erstellen
-  	if ($this->createTables) {
-  		if (!$this->sqlTableExists()) {
-  			if (!$this->sqlCreateTable()) {
+        if ($this->createTables)
+        {
+            if (!$this->sqlTableExists())
+            {
+                if (!$this->sqlCreateTable())
+                {
   				$this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, $this->getError()));
   			}
   		}
@@ -673,7 +792,8 @@ class dbSyncDataProtocol extends dbConnectLE {
    * @param INT $status
    * @return BOOL
    */
-  public function addEntry($archive_id, $archive_number, $job_id, $text, $file, $size, $action, $status) {
+    public function addEntry($archive_id, $archive_number, $job_id, $text, $file, $size, $action, $status)
+    {
   	$data = array(
   		self::field_archive_id			=> $archive_id,
   		self::field_archive_number	=> $archive_number,
@@ -684,7 +804,8 @@ class dbSyncDataProtocol extends dbConnectLE {
   		self::field_action					=> $action,
   		self::field_status					=> $status
   	);
-  	if (!$this->sqlInsertRecord($data)) {
+        if (!$this->sqlInsertRecord($data))
+        {
   		$this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, $this->getError()));
   		return false;
   	}

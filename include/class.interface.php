@@ -828,7 +828,7 @@ class syncDataInterface {
     			if ($dircont[$i] !== '.' && $dircont[$i] !== '..') {
     				$current_file = "{$thisdir}/{$dircont[$i]}";
     				if (is_file($current_file)) {
-    					$path[] = "{$thisdir}/{$dircont[$i]}";
+                            $path[] = sanitize_path("{$thisdir}/{$dircont[$i]}");
     				} 
     				elseif (is_dir($current_file)) {
     					$stack[] = $current_file;
@@ -847,7 +847,8 @@ class syncDataInterface {
 	 * @param INT $job_id
 	 * @return BOOL
 	 */
-	private function backupFiles($job_id) {
+    private function backupFiles($job_id)
+    {
 		global $dbSyncDataJob;
 		global $dbSyncDataArchive;
 		global $dbSyncDataFile;
@@ -860,9 +861,7 @@ class syncDataInterface {
 			return false;
 		}
 		$job = $job[0];
-		
 		$running = (empty($job[dbSyncDataJobs::field_next_file])) ? true : false;
-		
 		$zip_file = $this->temp_path.$job[dbSyncDataJobs::field_archive_file];
 		$zip = CAT_Helper_Zip::getInstance($zip_file);
 		
@@ -878,7 +877,8 @@ class syncDataInterface {
 		
 		$files = file($this->temp_path.self::file_list, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
 		$max = count($files);
-		
+$fh = fopen(CAT_PATH.'/temp/text.txt');
+fputs($fh,'files: '.$max."\n");
 		$ig_dir = $dbSyncDataCfg->getValue(dbSyncDataCfg::cfgIgnoreDirectories);
 		$ig_dir = explode("\n", $ig_dir);
 		$ignore_directories = array();
@@ -1052,7 +1052,7 @@ AuthType Basic
   	$restore_info = $this->array_search($list, 'filename', self::sync_data_ini);
   	if (count($restore_info) != 1) {
   		// sync_data.ini nicht gefunden!
-  		$this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, sprintf(sync_error_archive_missing_ini, basename($backup_archive))));
+          $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, sprintf(sync_error_archive_missing_ini, basename($backup_archive))));
   		return false;
   	}
   	
