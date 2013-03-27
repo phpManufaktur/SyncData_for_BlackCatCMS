@@ -6,6 +6,17 @@ http://phpManufaktur.de - ralf.hertsch@phpManufaktur.de
 Release 0.60
 2013-xx-xx
 published: first syncData beta release for BlackCat CMS
+changed: renamed to syncData
+changed: logo transparent and a bit smaller
+changed: removed dwoo subfolder (Dwoo is part of BlackCat CMS Core)
+changed: only use internal dbconnect_le (no check for module)
+changed: Use CAT_Helper_Zip instead of PclZip
+changed: use CAT_Helper_I18n for internationalization
+changed: Backend layout (fit into freshcat theme)
+changed: moved classes into include subfolder
+changed: moved info.txt as notes.txt into include subfolder (this file)
+added: some markup for notes.txt
+added: create .htaccess and .htpasswd for subfolders in /temp and /media to protect the dump
 
 Release 0.50
 2011-09-26

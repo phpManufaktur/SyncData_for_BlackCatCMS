@@ -67,10 +67,10 @@ $droplets = new checkDroplets();
 $droplets->droplet_path = CAT_PATH.'/modules/'.basename(dirname(__FILE__)).'/droplets/';
 
 if ($droplets->insertDropletsIntoTable()) {
-  $message = sprintf(sync_msg_install_droplets_success, 'syncData');
+  $message = sprintf($admin->lang->translate('The Droplets for %s were successfully installed. You will find further informations about the use of Droplets in the dokumentation!'), 'syncData');
 }
 else {
-  $message = sprintf(sync_msg_install_droplets_failed, 'syncData', $droplets->getError());
+  $message = sprintf($admin->lang->translate('The installation of the Droplets is unfortunately failed for %s - Error message: %s'), 'syncData', $droplets->getError());
 }
 if ($message != "") {
   echo '<script language="javascript">alert ("'.$message.'");</script>';

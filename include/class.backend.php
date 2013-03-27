@@ -136,6 +136,7 @@ class syncBackend
     private $limit_execution_time = 25;
     private $memory_limit = '256M';
     private $next_file = '';
+    private $val = NULL;
 
     /**
      * Constructor
@@ -147,7 +148,7 @@ class syncBackend
         $this->template_path = sanitize_path(dirname(__FILE__) . '/../templates/default/');
         $this->img_url       = CAT_URL . '/modules/syncData/images/';
         date_default_timezone_set(sync_cfg_time_zone);
-        $this->temp_path = sanitize_path(CAT_PATH . '/temp/syncData/');
+        $this->temp_path = sanitize_path(CAT_PATH . '/temp/syncData').'/';
         if (!file_exists($this->temp_path)) {
             mkdir($this->temp_path, 0755, true);
             $interface->createAccessFiles($this->temp_path);
@@ -158,6 +159,7 @@ class syncBackend
         $this->limit_execution_time = $dbSyncDataCfg->getValue(dbSyncDataCfg::cfgLimitExecutionTime);
         set_time_limit($this->max_execution_time);
         $parser->setPath($this->template_path);
+        $this->val = CAT_Helper_Validate::getInstance();
     } // __construct()
 
     /**
@@ -1154,15 +1156,17 @@ class syncBackend
         global $kitTools;
         global $interface;
         global $dbSyncDataCfg;
+        global $admin;
 
-        $backup_archive = (isset($_REQUEST[self::request_restore])) ? $_REQUEST[self::request_restore] : -1;
+        $backup_archive = $this->val->sanitizePost(self::request_restore);
 
-        if ($backup_archive == -1)
+        if (!$backup_archive)
         {
             // kein gueltiges Archiv angegeben, Meldung setzen und zurueck zum Auswahldialog
-            $this->setMessage(sync_msg_no_backup_file_for_process);
+            $this->setMessage($admin->lang->translate('<p>The system got no backup of data that could be recovered.</p>'));
             return $this->dlgRestore();
         }
+
         // get the content of syncData.ini into the $ini_data array
         $ini_data = array();
         if (!$interface->restoreInfo($backup_archive, $ini_data))
@@ -1211,7 +1215,7 @@ class syncBackend
                 'text' => $ini_data[syncDataInterface::section_general]['used_wb_url']
             ),
             array(
-                'label' => sync_label_status,
+                'label' => $admin->lang->translate('Status'),
                 'text' => $ini_data[syncDataInterface::section_general][dbSyncDataJobs::field_last_message]
             ),
             array(
@@ -1226,93 +1230,93 @@ class syncBackend
 
         $restore = array(
             'select' => array(
-                'label' => sync_label_restore,
+                'label' => $admin->lang->translate('Restore'),
                 'select' => array(
                     array(
                         'name' => dbSyncDataJobs::field_type,
                         'value' => dbSyncDataJobs::type_restore_mysql,
-                        'text' => sync_label_tables,
+                        'text' => $admin->lang->translate('MySQL tables'),
                         'checked' => 1,
                         'enabled' => ($restore_tables && ($ini_data[syncDataInterface::section_general][dbSyncDataJobs::field_type] == dbSyncDataJobs::type_backup_complete) || ($ini_data[syncDataInterface::section_general][dbSyncDataJobs::field_type] == dbSyncDataJobs::type_backup_mysql)) ? 1 : 0
                     ),
                     array(
                         'name' => dbSyncDataJobs::field_type,
                         'value' => dbSyncDataJobs::type_restore_files,
-                        'text' => sync_label_files,
+                        'text' => $admin->lang->translate('Files'),
                         'checked' => 1,
                         'enabled' => ($restore_files && ($ini_data[syncDataInterface::section_general][dbSyncDataJobs::field_type] == dbSyncDataJobs::type_backup_complete) || ($ini_data[syncDataInterface::section_general][dbSyncDataJobs::field_type] == dbSyncDataJobs::type_backup_files)) ? 1 : 0
                     )
                 )
             ),
             'mode' => array(
-                'label' => sync_label_restore_mode,
+                'label' => $admin->lang->translate('Mode'),
                 'select' => array(
                     array(
                         'name' => dbSyncDataJobs::field_restore_mode,
                         'value' => dbSyncDataJobs::mode_changed_binary,
-                        'text' => sync_label_restore_mode_binary,
+                        'text' => $admin->lang->translate('replace changed tables and files (binary comparison, <i>very slow!</i>)'),
                         'checked' => 0
                     ),
                     array(
                         'name' => dbSyncDataJobs::field_restore_mode,
                         'value' => dbSyncDataJobs::mode_changed_date_size,
-                        'text' => sync_label_restore_mode_time_size,
+                        'text' => $admin->lang->translate('replace changed tables and files (check date & size)'),
                         'checked' => 1
                     ),
                     array(
                         'name' => dbSyncDataJobs::field_restore_mode,
                         'value' => dbSyncDataJobs::mode_replace_all,
-                        'text' => sync_label_restore_mode_replace_all,
+                        'text' => $admin->lang->translate('replace all tables and files'),
                         'checked' => 0
                     )
                 )
             ),
             'replace' => array(
                 'url' => array(
-                    'label' => sync_label_restore_replace,
+                    'label' => $admin->lang->translate('Search & Replace'),
                     'name' => dbSyncDataJobs::field_replace_wb_url, //self::request_restore_replace_url,
                     'value' => 1,
-                    'text' => sync_label_restore_replace_url,
+                    'text' => $admin->lang->translate('update Base URL in MySQL tables'),
                     'checked' => 1
                 ),
                 'prefix' => array(
-                    'label' => sync_label_restore_replace,
+                    'label' => $admin->lang->translate('Replace'),
                     'name' => dbSyncDataJobs::field_replace_table_prefix, //self::request_restore_replace_prefix,
                     'value' => 1,
-                    'text' => sync_label_restore_replace_prefix,
+                    'text' => $admin->lang->translate('update TABLE_PREFIX in MySQL tables'),
                     'checked' => 1
                 )
             ),
             'ignore' => array(
                 'config' => array(
-                    'label' => sync_label_restore_ignore,
+                    'label' => $admin->lang->translate('Ignore'),
                     'name' => dbSyncDataJobs::field_ignore_config,
                     'value' => 1,
-                    'text' => sync_label_restore_ignore_config,
+                    'text' => $admin->lang->translate('config.php'),
                     'checked' => 1
                 ),
                 'htaccess' => array(
-                    'label' => sync_label_restore_ignore,
+                    'label' => $admin->lang->translate('Ignore'),
                     'name' => dbSyncDataJobs::field_ignore_htaccess,
                     'value' => 1,
-                    'text' => sync_label_restore_ignore_htaccess,
+                    'text' => $admin->lang->translate('.htaccess'),
                     'checked' => 1
                 )
             ),
             'delete' => array(
                 'tables' => array(
-                    'label' => sync_label_restore_delete,
+                    'label' => $admin->lang->translate('Delete'),
                     'name' => dbSyncDataJobs::field_delete_tables,
                     'value' => 1,
-                    'text' => sync_label_restore_delete_tables,
+                    'text' => $admin->lang->translate('delete existing tables which are not included in the archive'),
                     'checked' => 0,
                     'enabled' => 1
                 ),
                 'files' => array(
-                    'label' => sync_label_restore_delete,
+                    'label' => $admin->lang->translate('Delete'),
                     'name' => dbSyncDataJobs::field_delete_files,
                     'value' => 1,
-                    'text' => sync_label_restore_delete_files,
+                    'text' => $admin->lang->translate('delete existing files which are not included in the archive'),
                     'checked' => 0,
                     'enabled' => 1
                 )
@@ -1332,7 +1336,7 @@ class syncBackend
                     'value' => $backup_archive
                 ),
                 'btn' => array(
-                    'ok' => sync_btn_start,
+                    'ok' => $admin->lang->translate('Start ...'),
                     'abort' => $admin->lang->translate('Cancel')
                 )
             ),
@@ -1340,8 +1344,8 @@ class syncBackend
             'restore' => $restore,
             'head' => $admin->lang->translate('Start restore'),
             'is_intro' => $this->isMessage() ? 0 : 1,
-            'intro' => $this->isMessage() ? $this->getMessage() : sync_intro_restore_info,
-            'text_process' => sprintf(sync_msg_restore_running, $dbSyncDataCfg->getValue(dbSyncDataCfg::cfgLimitExecutionTime)),
+            'intro' => $this->isMessage() ? $this->getMessage() : $admin->lang->translate('<p>Please check! Is the selected backup of data right one -  should it be restored?</p><p>Define the settings for restore and then start the process.</p>'),
+            'text_process' => sprintf($admin->lang->translate('<p>The data restore runs.</p><p>Please don´t close this window and <b>wait for the status message by syncData you will get after max. %s seconds!</b></p>'), $dbSyncDataCfg->getValue(dbSyncDataCfg::cfgLimitExecutionTime)),
             'img_url' => $this->img_url
         );
 
@@ -1513,7 +1517,7 @@ class syncBackend
                 'name' => dbSyncDataJobs::field_id,
                 'value' => $job_id
             ),
-            'text_process' => sprintf(sync_msg_restore_running, $dbSyncDataCfg->getValue(dbSyncDataCfg::cfgLimitExecutionTime)),
+            'text_process' => sprintf($admin->lang->translate('<p>The data restore runs.</p><p>Please don´t close this window and <b>wait for the status message by syncData you will get after max. %s seconds!</b></p>'), $dbSyncDataCfg->getValue(dbSyncDataCfg::cfgLimitExecutionTime)),
             'img_url' => $this->img_url,
             'auto_exec_msec' => $auto_exec_msec
         );

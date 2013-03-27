@@ -40,8 +40,12 @@ if (defined('CAT_PATH')) {
 }
 
 // ----- default config for Germany -----
-define('sync_cfg_time_zone', 'Europe/Berlin');
-define('sync_cfg_datetime_str',	'd.m.Y H:i');
+define('sync_cfg_time_zone'                     , 'Europe/Berlin');
+define('sync_cfg_datetime_str'                  , 'd.m.Y H:i');
+
+define('sync_label_wb_path'                     , 'WB_PATH');
+define('sync_label_wb_url'                      , 'WB_URL');
+
 
 define('sync_label_cfg_auto_exec_msec',			'AutoExec in Millisekunden');
 define('sync_label_cfg_filemtime_diff_allowed',	'Erlaubte Zeitdifferenz');
@@ -71,6 +75,11 @@ define('sync_desc_cfg_server_url',				'Wenn Sie diese syncData Installation als 
 
 
 $LANG = array(
+    // installation
+    'The Droplets for %s were successfully installed. You will find further informations about the use of Droplets in the dokumentation!'
+        => 'Die Droplets fuer %s wurden erfolgreich installiert. Informationen zur Verwendung der Droplets finden Sie in der Dokumentation!',
+    'The installation of the Droplets is unfortunately failed for %s - Error message: %s'
+        => 'Die Installation der Droplets fuer %s ist leider fehlgeschlagen, Fehlermeldung: %s',
     // sync types
     'complete (database and files)' => 'Vollständig (Datenbank und Dateien)',
     'only database (MySQL)' => 'nur die MySQL Datenbank',
@@ -94,7 +103,24 @@ $LANG = array(
     'Archive information' => 'Archiv Information',
     'Archive number' => 'Archiv Nummer',
     'Archive type' => 'Archiv Typ',
-
+    'Status' => 'Status',
+    'Restore' => 'Rücksicherung',
+    'Delete' => 'Löschen',
+    'delete existing files which are not included in the archive' => 'vorhandene Dateien löschen, die nicht im Archiv enthalten sind',
+    'delete existing tables which are not included in the archive' => 'vorhandene Tabellen löschen, die nicht im Archiv enthalten sind',
+    'Ignore' => 'Ignorieren',
+    'config.php' => 'config.php',
+    '.htaccess' => '.htaccess',
+    'Mode' => 'Modus',
+    'replace changed tables and files (check date & size)' => 'geänderte Tabellen und Dateien ersetzen (Datum & Größe prüfen)',
+    'replace changed tables and files (binary comparison, <i>very slow!</i>)' => 'geänderte Tabellen und Dateien ersetzen (binärer Vergleich, <i>sehr langsam!</i>)',
+    'replace all tables and files' => 'alle Tabellen und Dateien ersetzen',
+    'Search & Replace' => 'Suchen & Ersetzen',
+    'update TABLE_PREFIX in MySQL tables' => 'TABLE_PREFIX in MySQL Tabellen aktualisieren',
+    'update Base URL in MySQL tables' => 'Basis-URL in MySQL Tabellen aktualisieren',
+    'Choose a restore!' => 'Rücksicherung auswählen',
+    'MySQL tables' => 'MySQL Tabellen',
+    'Files' => 'Dateien',
 
     // header
     'Backup of data' => 'Datensicherung',
@@ -116,8 +142,16 @@ $LANG = array(
     'Give the archive a name' => 'Geben Sie dem Archiv einen Namen',
 
     // errors
+    '<p>The system got no backup of data that could be recovered.</p>'
+        => '<p>Es wurde keine Datensicherung übergeben, die wiederhergestellt werden kann.</p>',
+    '<p>The directory <span class="sync_data_highlight">%s</span> could not be created!</p>'
+        => '<p>Das Verzeichnis <span class="sync_data_highlight">%s</span> konnte nicht angelegt werden!</p>',
     '<p>The archive <span class="sync_data_highlight">%s</span> is not a valid syncData archive - missing file <span class="sync_data_highlight">sync_data.ini</span>!</p>'
         => '<p>Das Archiv <span class="sync_data_highlight">%s</span> ist kein gültiges syncData Archiv, die Datei <span class="sync_data_highlight">sync_data.ini</span> fehlt.</p>',
+    '<p>The archive <span class="sync_data_highlight">%s</span> is not a valid syncData archive - missing file <span class="sync_data_highlight">sync_data.ini</span>!</p>'
+        => '<p>Das Archiv <span class="sync_data_highlight">%s</span> ist kein gültiges syncData Archiv, die Datei <span class="sync_data_highlight">sync_data.ini</span> fehlt.</p>',
+    '<p>Error writing file <span class="sync_data_highlight">%s</span>.</p>'
+        => '<p>Fehler beim Schreiben in die Datei <span class="sync_data_highlight">%s</span>.</p>',
 
     // intro
     '<p>Create a new backup or select a backup which will be updated.</p>' => '<p>Erstellen Sie ein neues Backup oder wählen Sie ein Backup aus, das aktualisiert werden soll.</p>',
@@ -139,6 +173,8 @@ $LANG = array(
         => '<p>Die Aktualisierung konnte nicht abgeschlossen werden, da nicht alle Dateien innerhalb der maximalen Ausführungszeit für PHP Scripte von <b>%s Sekunden</b> gesichert werden konnten.</p><p>Bis jetzt wurden <b>%s</b> Dateien mit einem Umfang von <b>%s</b> aktualisiert.</p><p>Bitte klicken Sie auf "Fortsetzen ..." um die Aktualisierung fortzusetzen.</p>%s',
     '<p>The backup was completed successfully.</p><p>There were <span class="sync_data_highlight">%s</span> files backed up with a circumference of <span class="sync_data_highlight">%s</span>.</p><p>See the full archive:<br /><a href="%s">%s</a>.'
         => '<p>Die Datensicherung wurde erfolgreich abgeschlossen.</p><p>Es wurden <span class="sync_data_highlight">%s</span> Dateien mit einem Umfang von <span class="sync_data_highlight">%s</span> gesichert.</p><p>Sie finden das vollständige Archiv unter:<br /><a href="%s">%s</a>.',
+    '<p>The data restore runs.</p><p>Please don´t close this window and <b>wait for the status message by syncData you will get after max. %s seconds!</b></p>'
+        => '<p>Die Datenwiederherstellung wird ausgeführt.</p><p>Schliessen Sie dieses Fenster nicht und <b>warten Sie die Statusmeldung durch syncData nach max. %s Sekunden ab</b>.</p>',
 
     '- create new backup -' => '- neues Backup erstellen -',
     'backup of data from %s' => 'Datensicherung vom %s',
