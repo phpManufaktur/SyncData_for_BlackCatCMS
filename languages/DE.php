@@ -36,7 +36,7 @@ if (defined('CAT_PATH')) {
 			include($dir.'/framework/class.secure.php'); $inc = true;	break;
 		}
 	}
-	if (!$inc) trigger_error(sprintf("[ <b>%s</b> ] Can't include class.secure.php!", $_SERVER['SCRIPT_NAME']), E_USER_ERROR);
+	if (!$inc) trigger_error(sprintf("[ %s ] Can't include class.secure.php!", $_SERVER['SCRIPT_NAME']), E_USER_ERROR);
 }
 
 // ----- default config for Germany -----
@@ -59,17 +59,17 @@ define('sync_label_cfg_server_active',			'syncData Server');
 define('sync_label_cfg_server_archive_id',		'Archiv ID für die Synchronisation');
 define('sync_label_cfg_server_url',				'syncData Server URL');
 
-define('sync_desc_cfg_auto_exec_msec',			'Die Wartezeit in Millisekunden, bis syncData einen unterbrochenen Prozess automatisch fortsetzt. Beträgt der Wert <b>0</b>, wird die automatische Fortsetzung ausgeschaltet. Der Standardwert ist <b>5000</b> Millisekunden.');
-define('sync_desc_cfg_filemtime_diff_allowed',	'Erlaubte Abweichung beim <b>filemtime()</b> Vergleich in Sekunden, der Standardwert ist 1 Sekunde.');
-define('sync_desc_cfg_limit_execution_time',	'Limit der Ausführungsdauer in Sekunden. Bei Erreichen des Wertes bricht das Script die Ausführung ab, um ein Überschreiten der <b>maximalen Ausführungsdauer</b> zu verhindern.');
+define('sync_desc_cfg_auto_exec_msec',			'Die Wartezeit in Millisekunden, bis syncData einen unterbrochenen Prozess automatisch fortsetzt. Beträgt der Wert <span class="sync_data_highlight">0</span>, wird die automatische Fortsetzung ausgeschaltet. Der Standardwert ist <span class="sync_data_highlight">5000</span> Millisekunden.');
+define('sync_desc_cfg_filemtime_diff_allowed',	'Erlaubte Abweichung beim <span class="sync_data_highlight">filemtime()</span> Vergleich in Sekunden, der Standardwert ist 1 Sekunde.');
+define('sync_desc_cfg_limit_execution_time',	'Limit der Ausführungsdauer in Sekunden. Bei Erreichen des Wertes bricht das Script die Ausführung ab, um ein Überschreiten der <span class="sync_data_highlight">maximalen Ausführungsdauer</span> zu verhindern.');
 define('sync_desc_cfg_max_execution_time',		'Maximale Ausführungsdauer der Scripts in Sekunden. Der Standardwert beträgt 30 Sekunden');
-define('sync_desc_cfg_memory_limit',			'Maximaler Speicher (RAM), der syncData für die Ausführung der Scripts zur Verfügung steht. Die Angabe erfolgt in <b>Bytes</b> als Integer Wert oder als <a href="http://it.php.net/manual/de/faq.using.php#faq.using.shorthandbytes" target="_blank">abgekürzter Byte-Wert</a>, z.B. "256M".');
+define('sync_desc_cfg_memory_limit',			'Maximaler Speicher (RAM), der syncData für die Ausführung der Scripts zur Verfügung steht. Die Angabe erfolgt in <span class="sync_data_highlight">Bytes</span> als Integer Wert oder als <a href="http://it.php.net/manual/de/faq.using.php#faq.using.shorthandbytes" target="_blank">abgekürzter Byte-Wert</a>, z.B. "256M".');
 define('sync_desc_cfg_ignore_directories',		'Verzeichnisse, die von syncData grundsätzlich ignoriert werden sollen.');
 define('sync_desc_cfg_ignore_file_extensions',	'Dateien mit den angegebenen Endungen werden von syncData grundsätzlich ignoriert. Trennen Sie die Einträge mit einem Komma.');
-define('sync_desc_cfg_ignore_tables',			'MySQL Tabellen, die von syncData grundsätzlich ignoriert werden sollen. Achten Sie darauf, dass Sie die Tabellen <b>ohne TABLE_PREFIX</b> (lep_, wb_ o.ä.) angeben.');
+define('sync_desc_cfg_ignore_tables',			'MySQL Tabellen, die von syncData grundsätzlich ignoriert werden sollen. Achten Sie darauf, dass Sie die Tabellen <span class="sync_data_highlight">ohne TABLE_PREFIX</span> (lep_, wb_ o.ä.) angeben.');
 define('sync_desc_cfg_server_active',			'Geben Sie diese syncData Installation als Server frei, wenn sich andere syncData Clients mit dieser Installation synchronisieren sollen.<br />0 = Server AUS, 1 = Server EIN');
-define('sync_desc_cfg_server_archive_id',		'Wählen Sie die <b>ID</b> des Sicherungsarchiv aus, das für eine Synchronisation verwendet werden soll.');
-define('sync_desc_cfg_server_url',				'Wenn Sie diese syncData Installation als <b>Client</b> verwenden, geben Sie hier die vollständige URL des syncData <b>Server</b> an.');
+define('sync_desc_cfg_server_archive_id',		'Wählen Sie die <span class="sync_data_highlight">ID</span> des Sicherungsarchiv aus, das für eine Synchronisation verwendet werden soll.');
+define('sync_desc_cfg_server_url',				'Wenn Sie diese syncData Installation als <span class="sync_data_highlight">Client</span> verwenden, geben Sie hier die vollständige URL des syncData <span class="sync_data_highlight">Server</span> an.');
 
 
 
@@ -104,7 +104,7 @@ $LANG = array(
     'Archive number' => 'Archiv Nummer',
     'Archive type' => 'Archiv Typ',
     'Status' => 'Status',
-    'Restore' => 'Rücksicherung',
+    'Restore' => 'Restaurieren',
     'Delete' => 'Löschen',
     'delete existing files which are not included in the archive' => 'vorhandene Dateien löschen, die nicht im Archiv enthalten sind',
     'delete existing tables which are not included in the archive' => 'vorhandene Tabellen löschen, die nicht im Archiv enthalten sind',
@@ -152,6 +152,20 @@ $LANG = array(
         => '<p>Das Archiv <span class="sync_data_highlight">%s</span> ist kein gültiges syncData Archiv, die Datei <span class="sync_data_highlight">sync_data.ini</span> fehlt.</p>',
     '<p>Error writing file <span class="sync_data_highlight">%s</span>.</p>'
         => '<p>Fehler beim Schreiben in die Datei <span class="sync_data_highlight">%s</span>.</p>',
+    "<p>The file <span class=\"sync_data_highlight\">%s</span> doesn't exist!</p>"
+        => '<p>Die Datei <span class="sync_data_highlight">%s</span> existiert nicht!</p>',
+    '<p>The file <span class="sync_data_highlight">%s</span> couldn\'t be read!</p>'
+        => '<p>Die Datei <span class="sync_data_highlight">%s</span> konnte nicht gelesen werden!</p>',
+    '<p>There was no valid backup archive specified!</p>'
+        => '<p>Es wurde kein gültiges Backup Archiv angegeben!</p>',
+    '<p>Unknown status. Please contact the support.</p>'
+        => '<p>Unbekannter Status. Bitte informieren Sie den Support.</p>',
+    '<p>Can not find a job with the synData ID <span class="sync_data_highlight">%s</span>!</p>'
+        => '<p>Es wurde kein syncData Job mit der ID <span class="sync_data_highlight">%s</span> gefunden!</p>',
+    '<p>The file list contains no files for a restore!</p>'
+        => '<p>Die Dateiliste enthält keine Dateien für ein Restore!</p>',
+    '<p>The file list doesn\'t contain MySQL files!</p>'
+        => '<p>Die Dateiliste enthält keine MySQL Dateien!</p>',
 
     // intro
     '<p>Create a new backup or select a backup which will be updated.</p>' => '<p>Erstellen Sie ein neues Backup oder wählen Sie ein Backup aus, das aktualisiert werden soll.</p>',
@@ -160,21 +174,34 @@ $LANG = array(
     '<p>Edit the settings for <span class="sync_data_highlight">%s</span>.</p>' => '<p>Bearbeiten Sie die Einstellungen für <span class="sync_data_highlight">%s</span>.</p>',
     '<p>Select the backup from which will be used for data recovery.</p>' => '<p>Wählen Sie die Datensicherung aus, die für die Herstellung von Daten verwendet werden soll.</p>',
     '<p>Please check! Is the selected backup of data right one -  should it be restored?</p><p>Define the settings for restore and then start the process.</p>' => '<p>Bitte prüfen Sie, ob es sich um die gewünschte Datensicherung handelt.</p><p>Legen Sie die Art der Rücksicherung fest und starten Sie danach den Restore.</p>',
-    '<p>Edit the settings for <b>%s</b>.</p>' => '<p>Bearbeiten Sie die Einstellungen für <b>%s</b>.</p>',
+    '<p>Edit the settings for <span class="sync_data_highlight">%s</span>.</p>' => '<p>Bearbeiten Sie die Einstellungen für <span class="sync_data_highlight">%s</span>.</p>',
+
     // message
     '<p>There is nothing to do - task completed.</p>' => '<p>Es gibt nichts zu tun, Aktion beendet.</p>',
-    '<p>The backup runs.</p><p>Please don´t close this window and <b>wait for the status message by syncData you will get after max. %s seconds!</b></p>'
-        => '<p>Die Datensicherung wird ausgeführt.</p><p>Schliessen Sie dieses Fenster nicht und <b>warten Sie die Statusmeldung durch syncData nach max. %s Sekunden ab</b>.</p>',
+    '<p>The backup runs.</p><p>Please don\'t close this window and <span class="sync_data_highlight">wait for the status message by syncData you will get after max. %s seconds!</span></p>'
+        => '<p>Die Datensicherung wird ausgeführt.</p><p>Schliessen Sie dieses Fenster nicht und <span class="sync_data_highlight">warten Sie die Statusmeldung durch syncData nach max. %s Sekunden ab</span>.</p>',
     '<p>No backups were found in the directory <span class="sync_data_highlight">%s</span>, which can be used for a restore.</p><p></p>Transfer the archive files manually via FTP to the directory <span class="sync_data_highlight">%s</span> and you call this dialogue again.</p>'
         => '<p>Im Verzeichnis <span class="sync_data_highlight">%s</span> wurden keine Backups gefunden, die für eine Rücksicherung verwendet werden können.</p><p></p>Übertragen Sie die Archivdateien, die verwendet werden sollen, per FTP in das Verzeichnis <span class="sync_data_highlight">%s</span> und rufen Sie diesen Dialog anschließend erneut auf.</p>',
     '<p style="color:red;"><em>AutoExec is active. The process will continue automatically in %d milliseconds.</em></p>'
         => '<p style="color:red;"><em>AutoExec ist aktiv, der Vorgang wird in %d Millisekunden automatisch fortgesetzt.</em></p>',
-    '<p>The update isn´t complete because not all files could be secured within the maximum execution time for PHP scripts from <b>%s seconds</b>.</p><p>Until now, <b>%s</b> files updated with a circumference of <b>%s</b>.</p><p>Please click "Continue ..." to proceed the update.</p>%s'
-        => '<p>Die Aktualisierung konnte nicht abgeschlossen werden, da nicht alle Dateien innerhalb der maximalen Ausführungszeit für PHP Scripte von <b>%s Sekunden</b> gesichert werden konnten.</p><p>Bis jetzt wurden <b>%s</b> Dateien mit einem Umfang von <b>%s</b> aktualisiert.</p><p>Bitte klicken Sie auf "Fortsetzen ..." um die Aktualisierung fortzusetzen.</p>%s',
+    '<p>The update isn\'t complete because not all files could be secured within the maximum execution time for PHP scripts from <span class="sync_data_highlight">%s seconds</span>.</p><p>Until now, <span class="sync_data_highlight">%s</span> files updated with a circumference of <span class="sync_data_highlight">%s</span>.</p><p>Please click "Continue ..." to proceed the update.</p>%s'
+        => '<p>Die Aktualisierung konnte nicht abgeschlossen werden, da nicht alle Dateien innerhalb der maximalen Ausführungszeit für PHP Scripte von <span class="sync_data_highlight">%s Sekunden</span> gesichert werden konnten.</p><p>Bis jetzt wurden <span class="sync_data_highlight">%s</span> Dateien mit einem Umfang von <span class="sync_data_highlight">%s</span> aktualisiert.</p><p>Bitte klicken Sie auf "Fortsetzen ..." um die Aktualisierung fortzusetzen.</p>%s',
     '<p>The backup was completed successfully.</p><p>There were <span class="sync_data_highlight">%s</span> files backed up with a circumference of <span class="sync_data_highlight">%s</span>.</p><p>See the full archive:<br /><a href="%s">%s</a>.'
         => '<p>Die Datensicherung wurde erfolgreich abgeschlossen.</p><p>Es wurden <span class="sync_data_highlight">%s</span> Dateien mit einem Umfang von <span class="sync_data_highlight">%s</span> gesichert.</p><p>Sie finden das vollständige Archiv unter:<br /><a href="%s">%s</a>.',
-    '<p>The data restore runs.</p><p>Please don´t close this window and <b>wait for the status message by syncData you will get after max. %s seconds!</b></p>'
-        => '<p>Die Datenwiederherstellung wird ausgeführt.</p><p>Schliessen Sie dieses Fenster nicht und <b>warten Sie die Statusmeldung durch syncData nach max. %s Sekunden ab</b>.</p>',
+    '<p>The data restore runs.</p><p>Please don\'t close this window and <span class="sync_data_highlight">wait for the status message by syncData you will get after max. %s seconds!</span></p>'
+        => '<p>Die Datenwiederherstellung wird ausgeführt.</p><p>Schliessen Sie dieses Fenster nicht und <span class="sync_data_highlight">warten Sie die Statusmeldung durch syncData nach max. %s Sekunden ab</span>.</p>',
+    '<p>The data restore is complete.</p><p>tables:<br /><ul><li>deleted: %d (%s)</li><li>added: %d (%s)</li><li>changed: %d (%s)</li></ul></p><p>files:<br /><ul><li>deleted: %d (%s)</li><li>added: %d (%s)</li><li>changed: %d (%s)</li></ul></p>'
+        => '<p>Die Datenwiederherstellung ist abgeschlossen.</p><p>Tabellen:<br /><ul><li>gelöscht: %d (%s)</li><li>hinzugefügt: %d (%s)</li><li>geändert: %d (%s)</li></ul></p><p>Dateien:<br /><ul><li>gelöscht: %d (%s)</li><li>hinzugefügt: %d (%s)</li><li>geändert: %d (%s)</li></ul></p>',
+
+// ----- protocol -----
+    'The file %s was added.' => 'Die Datei %s wurde hinzugefügt.',
+    'The file %s was deleted.' => 'Die Datei %s wurde gelöscht.',
+    'The file %s has been replaced.' => 'Die Datei %s wurde ersetzt.',
+    'The table %s was added.' => 'Die Tabelle %s wurde hinzugefügt.',
+    'The table %s has been deleted' => 'Die Tabelle %s wurde gelöscht',
+    'The table %s has been ignored.' => 'Die Tabelle %s wurde ignoriert.',
+    'The table %s has been replaced.' => 'Die Tabelle %s wurde ersetzt.',
+
 
     '- create new backup -' => '- neues Backup erstellen -',
     'backup of data from %s' => 'Datensicherung vom %s',

@@ -52,7 +52,7 @@ else
         }
     }
     if (!$inc)
-        trigger_error(sprintf("[ <b>%s</b> ] Can't include class.secure.php!", $_SERVER['SCRIPT_NAME']), E_USER_ERROR);
+        trigger_error(sprintf("[ %s ] Can't include class.secure.php!", $_SERVER['SCRIPT_NAME']), E_USER_ERROR);
 }
 
 if (!class_exists('dbconnectle'))
@@ -522,7 +522,7 @@ class syncBackend
             'items_name' => self::request_items,
             'items_value' => implode(",", $count),
             'head' => $admin->lang->translate('Settings'),
-            'intro' => $this->isMessage() ? $this->getMessage() : sprintf($admin->lang->translate('<p>Edit the settings for <b>%s</b>.</p>'), 'syncData'),
+            'intro' => $this->isMessage() ? $this->getMessage() : sprintf($admin->lang->translate('<p>Edit the settings for <span class="sync_data_highlight">%s</span>.</p>'), 'syncData'),
             'is_message' => $this->isMessage() ? 1 : 0,
             'items' => $items,
             'btn_ok' => $admin->lang->translate('Apply'),
@@ -703,7 +703,7 @@ class syncBackend
                 'head' => $admin->lang->translate('Neue Datensicherung erstellen'),
                 'is_intro' => $this->isMessage() ? 0 : 1,
                 'intro' => $this->isMessage() ? $this->getMessage() : $admin->lang->translate('<p>Select the type of data backup and give the archive a name.</p>'),
-                'text_process' => sprintf($admin->lang->translate('<p>The backup runs.</p><p>Please don´t close this window and <b>wait for the status message by syncData you will get after max. %s seconds!</b></p>'), $dbSyncDataCfg->getValue(dbSyncDataCfg::cfgLimitExecutionTime)),
+                'text_process' => sprintf($admin->lang->translate('<p>The backup runs.</p><p>Please don\'t close this window and <span class="sync_data_highlight">wait for the status message by syncData you will get after max. %s seconds!</span></p>'), $dbSyncDataCfg->getValue(dbSyncDataCfg::cfgLimitExecutionTime)),
                 'img_url' => $this->img_url
             );
             return $this->getTemplate('backend.backup.new.lte', $data);
@@ -804,7 +804,7 @@ class syncBackend
                 'head' => $admin->lang->translate('Datensicherung aktualisieren'),
                 'is_intro' => $this->isMessage() ? 0 : 1,
                 'intro' => $this->isMessage() ? $this->getMessage() : $admin->lang->translate('<p>Check that the correct backup archive will be updated and give the update archive a name.</p>'),
-                'text_process' => sprintf($admin->lang->translate('<p>The backup runs.</p><p>Please don´t close this window and <b>wait for the status message by syncData you will get after max. %s seconds!</b></p>'), $dbSyncDataCfg->getValue(dbSyncDataCfg::cfgLimitExecutionTime)),
+                'text_process' => sprintf($admin->lang->translate('<p>The backup runs.</p><p>Please don\'t close this window and <span class="sync_data_highlight">wait for the status message by syncData you will get after max. %s seconds!</span></p>'), $dbSyncDataCfg->getValue(dbSyncDataCfg::cfgLimitExecutionTime)),
                 'img_url' => $this->img_url
             );
             return $this->getTemplate('backend.backup.update.lte', $data);
@@ -887,7 +887,7 @@ class syncBackend
         }
         $auto_exec_msec = $dbSyncDataCfg->getValue(dbSyncDataCfg::cfgAutoExecMSec);
         $auto_exec      = $auto_exec_msec > 0 ? sprintf($admin->lang->translate('<p style="color:red;"><em>AutoExec is active. The process will continue automatically in %d milliseconds.</em></p>'), $auto_exec_msec) : '';
-        $info           = sprintf($admin->lang->translate('<p>The update isn´t complete because not all files could be secured within the maximum execution time for PHP scripts from <b>%s seconds</b>.</p><p>Until now, <b>%s</b> files updated with a circumference of <b>%s</b>.</p><p>Please click "Continue ..." to proceed the update.</p>%s'), $this->max_execution_time, $files[0]['count'], $kitTools->bytes2Str($files[0]['bytes']), $auto_exec);
+        $info           = sprintf($admin->lang->translate('<p>The update isn\'t complete because not all files could be secured within the maximum execution time for PHP scripts from <span class="sync_data_highlight">%s seconds</span>.</p><p>Until now, <span class="sync_data_highlight">%s</span> files updated with a circumference of <span class="sync_data_highlight">%s</span>.</p><p>Please click "Continue ..." to proceed the update.</p>%s'), $this->max_execution_time, $files[0]['count'], $kitTools->bytes2Str($files[0]['bytes']), $auto_exec);
         $data           = array(
             'form' => array(
                 'name' => 'backup_continue',
@@ -908,7 +908,7 @@ class syncBackend
                 'name' => dbSyncDataJobs::field_id,
                 'value' => $job_id
             ),
-            'text_process' => sprintf($admin->lang->translate('<p>The backup runs.</p><p>Please don´t close this window and <b>wait for the status message by syncData you will get after max. %s seconds!</b></p>'), $dbSyncDataCfg->getValue(dbSyncDataCfg::cfgLimitExecutionTime)),
+            'text_process' => sprintf($admin->lang->translate('<p>The backup runs.</p><p>Please don\'t close this window and <span class="sync_data_highlight">wait for the status message by syncData you will get after max. %s seconds!</span></p>'), $dbSyncDataCfg->getValue(dbSyncDataCfg::cfgLimitExecutionTime)),
             'img_url' => $this->img_url,
             'auto_exec_msec' => $auto_exec_msec
         );
@@ -1345,7 +1345,7 @@ class syncBackend
             'head' => $admin->lang->translate('Start restore'),
             'is_intro' => $this->isMessage() ? 0 : 1,
             'intro' => $this->isMessage() ? $this->getMessage() : $admin->lang->translate('<p>Please check! Is the selected backup of data right one -  should it be restored?</p><p>Define the settings for restore and then start the process.</p>'),
-            'text_process' => sprintf($admin->lang->translate('<p>The data restore runs.</p><p>Please don�t close this window and <b>wait for the status message by syncData you will get after max. %s seconds!</b></p>'), $dbSyncDataCfg->getValue(dbSyncDataCfg::cfgLimitExecutionTime)),
+            'text_process' => sprintf($admin->lang->translate('<p>The data restore runs.</p><p>Please don\'t close this window and <span class="sync_data_highlight">wait for the status message by syncData you will get after max. %s seconds!</span></p>'), $dbSyncDataCfg->getValue(dbSyncDataCfg::cfgLimitExecutionTime)),
             'img_url' => $this->img_url
         );
 
@@ -1358,6 +1358,7 @@ class syncBackend
     public function restoreStart()
     {
         global $interface;
+        global $admin;
 
         $backup_archive = (isset($_REQUEST[self::request_restore])) ? $_REQUEST[self::request_restore] : -1;
 
@@ -1365,19 +1366,19 @@ class syncBackend
         if ($backup_archive == -1)
         {
             // kein gueltiges Archiv angegeben, Meldung setzen und zurueck zum Auswahldialog
-            $this - set_error(sprintf('[%s - %s] %s', __METHOD__, __LINE__, sync_error_backup_archive_invalid));
+            $this - set_error(sprintf('[%s - %s] %s', __METHOD__, __LINE__, $admin->lang->translate('<p>There was no valid backup archive specified!</p>')));
             return false;
         }
 
         // gettting the params for restoring
         $replace_prefix  = isset($_REQUEST[dbSyncDataJobs::field_replace_table_prefix]) ? true : false;
-        $replace_url     = isset($_REQUEST[dbSyncDataJobs::field_replace_wb_url]) ? true : false;
-        $restore_mode    = isset($_REQUEST[dbSyncDataJobs::field_restore_mode]) ? $_REQUEST[dbSyncDataJobs::field_restore_mode] : dbSyncDataJobs::mode_changed_date_size;
+        $replace_url     = isset($_REQUEST[dbSyncDataJobs::field_replace_wb_url])       ? true : false;
+        $restore_mode    = isset($_REQUEST[dbSyncDataJobs::field_restore_mode])         ? $_REQUEST[dbSyncDataJobs::field_restore_mode] : dbSyncDataJobs::mode_changed_date_size;
         $restore_type    = $_REQUEST[dbSyncDataJobs::field_type];
-        $ignore_config   = isset($_REQUEST[dbSyncDataJobs::field_ignore_config]) ? true : false;
-        $ignore_htaccess = isset($_REQUEST[dbSyncDataJobs::field_ignore_htaccess]) ? true : false;
-        $delete_files    = isset($_REQUEST[dbSyncDataJobs::field_delete_files]) ? true : false;
-        $delete_tables   = isset($_REQUEST[dbSyncDataJobs::field_delete_tables]) ? true : false;
+        $ignore_config   = isset($_REQUEST[dbSyncDataJobs::field_ignore_config])        ? true : false;
+        $ignore_htaccess = isset($_REQUEST[dbSyncDataJobs::field_ignore_htaccess])      ? true : false;
+        $delete_files    = isset($_REQUEST[dbSyncDataJobs::field_delete_files])         ? true : false;
+        $delete_tables   = isset($_REQUEST[dbSyncDataJobs::field_delete_tables])        ? true : false;
 
         $job_id = -1;
         $status = $interface->restoreStart($backup_archive, $replace_prefix, $replace_url, $restore_type, $restore_mode, $ignore_config, $ignore_htaccess, $delete_files, $delete_tables, $job_id);
@@ -1401,7 +1402,7 @@ class syncBackend
         else
         {
             // unknown status ...
-            $this->setError(sprintf('[%s %s] %s', __METHOD__, __LINE__, sync_error_status_unknown));
+            $this->setError(sprintf('[%s %s] %s', __METHOD__, __LINE__, $admin->lang->translate('<p>Unknown status. Please contact the support.</p>')));
             return false;
         }
     } // restoreStart()
@@ -1409,12 +1410,13 @@ class syncBackend
     public function restoreContinue()
     {
         global $interface;
+        global $admin;
 
         $job_id = isset($_REQUEST[dbSyncDataJobs::field_id]) ? $_REQUEST[dbSyncDataJobs::field_id] : -1;
 
         if ($job_id < 1)
         {
-            $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, sync_error_job_id_invalid));
+            $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, $admin->lang->translate('<p>Can not find a job with the synData ID <span class="sync_data_highlight">%s</span>!</p>')));
             return false;
         }
 
@@ -1517,7 +1519,7 @@ class syncBackend
                 'name' => dbSyncDataJobs::field_id,
                 'value' => $job_id
             ),
-            'text_process' => sprintf($admin->lang->translate('<p>The data restore runs.</p><p>Please don�t close this window and <b>wait for the status message by syncData you will get after max. %s seconds!</b></p>'), $dbSyncDataCfg->getValue(dbSyncDataCfg::cfgLimitExecutionTime)),
+            'text_process' => sprintf($admin->lang->translate('<p>The data restore runs.</p><p>Please don\'t close this window and <span class="sync_data_highlight">wait for the status message by syncData you will get after max. %s seconds!</span></p>'), $dbSyncDataCfg->getValue(dbSyncDataCfg::cfgLimitExecutionTime)),
             'img_url' => $this->img_url,
             'auto_exec_msec' => $auto_exec_msec
         );
@@ -1536,6 +1538,7 @@ class syncBackend
         global $dbSyncDataJob;
         global $kitTools;
         global $dbSyncDataProtocol;
+        global $admin;
 
         $where = array(
             dbSyncDataJobs::field_id => $job_id
@@ -1571,7 +1574,7 @@ class syncBackend
             $result_array[$action]['bytes'] = isset($result[0]['bytes']) ? $result[0]['bytes'] : 0;
         }
 
-        $info = sprintf(sync_msg_restore_finished, $result_array[dbSyncDataProtocol::action_mysql_delete]['count'], $kitTools->bytes2Str($result_array[dbSyncDataProtocol::action_mysql_delete]['bytes']), $result_array[dbSyncDataProtocol::action_mysql_add]['count'], $kitTools->bytes2Str($result_array[dbSyncDataProtocol::action_mysql_add]['bytes']), $result_array[dbSyncDataProtocol::action_mysql_replace]['count'], $kitTools->bytes2Str($result_array[dbSyncDataProtocol::action_mysql_replace]['bytes']), $result_array[dbSyncDataProtocol::action_file_delete]['count'], $kitTools->bytes2Str($result_array[dbSyncDataProtocol::action_file_delete]['bytes']), $result_array[dbSyncDataProtocol::action_file_add]['count'], $kitTools->bytes2Str($result_array[dbSyncDataProtocol::action_file_add]['bytes']), $result_array[dbSyncDataProtocol::action_file_replace]['count'], $kitTools->bytes2Str($result_array[dbSyncDataProtocol::action_file_replace]['bytes']));
+        $info = sprintf($admin->lang->translate('<p>The data restore is complete.</p><p>tables:<br /><ul><li>deleted: %d (%s)</li><li>added: %d (%s)</li><li>changed: %d (%s)</li></ul></p><p>files:<br /><ul><li>deleted: %d (%s)</li><li>added: %d (%s)</li><li>changed: %d (%s)</li></ul></p>'), $result_array[dbSyncDataProtocol::action_mysql_delete]['count'], $kitTools->bytes2Str($result_array[dbSyncDataProtocol::action_mysql_delete]['bytes']), $result_array[dbSyncDataProtocol::action_mysql_add]['count'], $kitTools->bytes2Str($result_array[dbSyncDataProtocol::action_mysql_add]['bytes']), $result_array[dbSyncDataProtocol::action_mysql_replace]['count'], $kitTools->bytes2Str($result_array[dbSyncDataProtocol::action_mysql_replace]['bytes']), $result_array[dbSyncDataProtocol::action_file_delete]['count'], $kitTools->bytes2Str($result_array[dbSyncDataProtocol::action_file_delete]['bytes']), $result_array[dbSyncDataProtocol::action_file_add]['count'], $kitTools->bytes2Str($result_array[dbSyncDataProtocol::action_file_add]['bytes']), $result_array[dbSyncDataProtocol::action_file_replace]['count'], $kitTools->bytes2Str($result_array[dbSyncDataProtocol::action_file_replace]['bytes']));
 
         $data = array(
             'form' => array(
@@ -1734,7 +1737,7 @@ class syncBackend
         $auto_exec_msec = $dbSyncDataCfg->getValue(dbSyncDataCfg::cfgAutoExecMSec);
         $auto_exec      = $auto_exec_msec > 0 ? sprintf($admin->lang->translate('<p style="color:red;"><em>AutoExec is active. The process will continue automatically in %d milliseconds.</em></p>'), $auto_exec_msec) : '';
 
-        $info = sprintf($admin->lang->translate('<p>The update isn´t complete because not all files could be secured within the maximum execution time for PHP scripts from <b>%s seconds</b>.</p><p>Until now, <b>%s</b> files updated with a circumference of <b>%s</b>.</p><p>Please click "Continue ..." to proceed the update.</p>%s'), $this->max_execution_time, $files[0]['count'], $kitTools->bytes2Str($files[0]['bytes']), $auto_exec);
+        $info = sprintf($admin->lang->translate('<p>The update isn\'t complete because not all files could be secured within the maximum execution time for PHP scripts from <span class="sync_data_highlight">%s seconds</span>.</p><p>Until now, <span class="sync_data_highlight">%s</span> files updated with a circumference of <span class="sync_data_highlight">%s</span>.</p><p>Please click "Continue ..." to proceed the update.</p>%s'), $this->max_execution_time, $files[0]['count'], $kitTools->bytes2Str($files[0]['bytes']), $auto_exec);
         $data = array(
             'form' => array(
                 'name' => 'update_continue',
