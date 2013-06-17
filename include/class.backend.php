@@ -96,6 +96,7 @@ class syncBackend
     const action_backup = 'back';
     const action_backup_start = 'baks';
     const action_backup_start_new = 'baksn';
+    const action_backup_start_new_selective = 'baksnsel';
     const action_backup_continue = 'bakc';
     const action_process_backup = 'pb';
     const action_restore = 'rst';
@@ -143,7 +144,7 @@ class syncBackend
      */
     public function __construct()
     {
-        global $dbSyncDataCfg, $parser;
+        global $dbSyncDataCfg, $parser, $admin;
         $this->page_link     = CAT_ADMIN_URL . '/admintools/tool.php?tool=syncData';
         $this->template_path = sanitize_path(dirname(__FILE__) . '/../templates/default/');
         $this->img_url       = CAT_URL . '/modules/syncData/images/';
@@ -160,6 +161,7 @@ class syncBackend
         set_time_limit($this->max_execution_time);
         $parser->setPath($this->template_path);
         $this->val = CAT_Helper_Validate::getInstance();
+        $admin->lang()->addFile(LANGUAGE . '.php', sanitize_path(dirname(__FILE__).'/../languages'));
     } // __construct()
 
     /**
@@ -197,6 +199,7 @@ class syncBackend
                 $this->show(self::action_backup, $this->dlgBackupStart());
                 break;
             case self::action_backup_start_new:
+            case self::action_backup_start_new_selective:
                 $this->show(self::action_backup, $this->backupStartNewArchive());
                 break;
             case self::action_backup_continue:
@@ -227,6 +230,10 @@ class syncBackend
         endswitch;
     } // end function action()
 
+// *****************************************************************************
+//      ERROR HANDLING
+// *****************************************************************************
+
     /**
      * Set $this->error to $error
      *
@@ -239,7 +246,7 @@ class syncBackend
         global $admin;
         $debug       = debug_backtrace();
         $caller      = next($debug);
-        $this->error = sprintf('[%s::%s - %s] %s', basename($caller['file']), $caller['function'], $caller['line'], $admin->lang->translate($error));
+        $this->error = sprintf('[%s::%s - %s] %s', basename($caller['file']), $caller['function'], $caller['line'], $admin->lang()->translate($error));
     } // end function setError()
 
     /**
@@ -274,6 +281,10 @@ class syncBackend
         $this->error = '';
     }   // end function clearError()
 
+// *****************************************************************************
+//      MESSAGE HANDLING
+// *****************************************************************************
+
     /**
      * Set $this->message to $message
      *
@@ -293,7 +304,8 @@ class syncBackend
      */
     public function getMessage()
     {
-        return $this->message;
+        global $admin;
+        return $admin->lang()->translate($this->message);
     } // getMessage()
 
     /**
@@ -308,110 +320,460 @@ class syncBackend
     } // end function isMessage
 
     /**
-     * Return Version of Module
+     * Generate and show a message that the backup is interrupted,
+     * shows the actual state of backup
      *
-     * @access public
-     * @return FLOAT
+     * @param INT $job_id
+     * @return STR message dialog
      */
-    public function getVersion()
+    public function messageBackupInterrupt($job_id)
     {
-        // read info.php into array
-        $info_text = file(sanitize_path(dirname(__FILE__).'/../info.php'));
-        if ($info_text == false)
-        {
-            return -1;
-        }
-        // walk through array
-        foreach ($info_text as $item)
-        {
-            if (strpos($item, '$module_version') !== false)
-            {
-                // split string $module_version
-                $value = explode('=', $item);
-                // return floatval
-                return floatval(preg_replace('([\'";,\(\)[:space:][:alpha:]])', '', $value[1]));
-            }
-        }
-        return -1;
-    } // end function getVersion()
+        global $dbSyncDataJob;
+        global $dbSyncDataFile;
+        global $kitTools;
+        global $dbSyncDataCfg;
+        global $admin;
 
-    /**
-     * Get the desired $template within the template path, fills in the
-     * $template_data and return the template output
-     *
-     * @access public
-     * @param  string  $template
-     * @param  array   $template_data
-     * @return mixed   template or FALSE on error
-     */
-    public function getTemplate($template, $template_data)
-    {
-        global $parser;
-        $result = '';
-        try
+        $where = array(
+            dbSyncDataJobs::field_id => $job_id
+        );
+        $job   = array();
+        if (!$dbSyncDataJob->sqlSelectRecord($where, $job))
         {
-            $result = $parser->get($template, $template_data);
-        }
-        catch (Exception $e)
-        {
-            $this->setError(sprintf(sync_error_template_error, $template, $e->getMessage()));
+            $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, $dbSyncDataJob->getError()));
             return false;
         }
-        return $result;
-    } // end function getTemplate()
+        $job = $job[0];
 
-
-    /**
-     * protect against XSS Cross Site Scripting
-     *
-     * @access public
-     * @param  REFERENCE $_REQUEST Array
-     * @return $request
-     */
-    public function xssPrevent(&$request)
-    {
-        if (is_string($request))
+        // Anzahl und Umfang der bisher gesicherten Dateien ermitteln
+        $SQL   = sprintf("SELECT COUNT(%s) AS count, SUM(%s) AS bytes FROM %s WHERE %s='%s' AND %s='%s' AND %s='%s'", dbSyncDataFiles::field_file_name, dbSyncDataFiles::field_file_size, $dbSyncDataFile->getTableName(), dbSyncDataFiles::field_archive_id, $job[dbSyncDataJobs::field_archive_id], //$archive_id,
+            dbSyncDataFiles::field_status, dbSyncDataFiles::status_ok, dbSyncDataFiles::field_action, dbSyncDataFiles::action_add);
+        $files = array();
+        if (!$dbSyncDataFile->sqlExec($SQL, $files))
         {
-            $request = html_entity_decode($request);
-            $request = strip_tags($request);
-            $request = trim($request);
-            $request = stripslashes($request);
-        }
-        return $request;
-    } // end function xssPrevent()
-
-    /**
-     * Ausgabe des formatierten Ergebnis mit Navigationsleiste
-     *
-     * @access public
-     * @param  string  $action  - aktives Navigationselement
-     * @param  string  $content - Inhalt
-     * @return ECHO RESULT
-     */
-    public function show($action, $content)
-    {
-        global $admin;
-        $navigation = array();
-        $header     = '';
-        foreach ($this->tab_navigation_array as $key => $value)
-        {
-            $navigation[] = array(
-                'active' => ($key == $action) ? 1 : 0,
-                'url'    => sprintf('%s&%s=%s', $this->page_link, self::request_action, $key),
-                'text'   => $admin->lang->translate($value),
-                'icon'   => $this->tab_navigation_icon_array[$key]
-            );
-            $header = ($key == $action) ? $key : $header;
-        }
-        $data = array(
-            'navigation' => $navigation,
-            'error'      => ($this->isError()) ? 1 : 0,
-            'content'    => ($this->isError()) ? $this->getError() : $content,
-            'header'     => $admin->lang->translate($this->headers[$header]),
+            $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, $dbSyncDataFile->getError()));
+            return false;
+            }
+        $auto_exec_msec = $dbSyncDataCfg->getValue(dbSyncDataCfg::cfgAutoExecMSec);
+        $auto_exec      = $auto_exec_msec > 0 ? sprintf($admin->lang()->translate('<p style="color:red;"><em>AutoExec is active. The process will continue automatically in %d milliseconds.</em></p>'), $auto_exec_msec) : '';
+        $info           = sprintf($admin->lang()->translate('<p>The update isn\'t complete because not all files could be secured within the maximum execution time for PHP scripts from <span class="sync_data_highlight">%s seconds</span>.</p><p>Until now, <span class="sync_data_highlight">%s</span> files updated with a circumference of <span class="sync_data_highlight">%s</span>.</p><p>Please click "Continue ..." to proceed the update.</p>%s'), $this->max_execution_time, $files[0]['count'], $kitTools->bytes2Str($files[0]['bytes']), $auto_exec);
+        $data           = array(
+            'form' => array(
+                'name' => 'backup_continue',
+                'link' => $this->page_link,
+                'action' => array(
+                    'name' => self::request_action,
+                    'value' => self::action_backup_continue
+                ),
+                'btn' => array(
+                    'abort' => $admin->lang()->translate('Cancel'),
+                    'ok' => $admin->lang()->translate('Continue ...')
+                )
+            ),
+            'head' => $admin->lang()->translate('Datensicherung fortsetzen'),
+            'is_intro' => $this->isMessage() ? 0 : 1,
+            'intro' => $this->isMessage() ? $this->getMessage() : $info,
+            'job' => array(
+                'name' => dbSyncDataJobs::field_id,
+                'value' => $job_id
+            ),
+            'text_process' => sprintf($admin->lang()->translate('<p>The backup runs.</p><p>Please don\'t close this window and <span class="sync_data_highlight">wait for the status message by syncData you will get after max. %s seconds!</span></p>'), $dbSyncDataCfg->getValue(dbSyncDataCfg::cfgLimitExecutionTime)),
+            'img_url' => $this->img_url,
+            'auto_exec_msec' => $auto_exec_msec
         );
-        echo $this->getTemplate('backend.body.lte', $data);
-        echo $this->getError();
-    } // end function show()
+        // Statusmeldung ausgeben
+        return $this->getTemplate('backend.backup.interrupt.tpl', $data);
+    } // messageBackupInterrupt()
+
+    /**
+     * Generate and show a message that the backup is finished.
+     * Shows the main stats of the backup
+     *
+     * @param INT $job_id
+     * @return STR message dialog
+     */
+    public function messageBackupFinished($job_id)
+    {
+        global $dbSyncDataJob;
+        global $dbSyncDataFile;
+        global $kitTools;
+        global $interface;
+        global $dbSyncDataArchive;
+        global $admin;
+
+        $where = array(
+            dbSyncDataJobs::field_id => $job_id
+        );
+        $job   = array();
+        if (!$dbSyncDataJob->sqlSelectRecord($where, $job))
+        {
+            $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, $dbSyncDataJob->getError()));
+            return false;
+        }
+        if (count($job) < 1)
+        {
+            $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, sprintf(sync_error_job_id_invalid, $job_id)));
+            return false;
+        }
+        $job = $job[0];
+
+        $where   = array(
+            dbSyncDataArchives::field_archive_id => $job[dbSyncDataJobs::field_archive_id],
+            dbSyncDataArchives::field_archive_number => $job[dbSyncDataJobs::field_archive_number]
+        );
+        $archive = array();
+        if (!$dbSyncDataArchive->sqlSelectRecord($where, $archive))
+    {
+            $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, $dbSyncDataArchive->getError()));
+            return false;
+        }
+        if (count($archive) < 1)
+        {
+            $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, sprintf(sync_error_archive_id_invalid, $job[dbSyncDataJobs::field_archive_id])));
+            return false;
+        }
+        $archive = $archive[0];
+
+        // Anzahl und Umfang der bisher gesicherten Dateien ermitteln
+        $SQL   = sprintf("SELECT COUNT(%s), SUM(%s) FROM %s WHERE %s='%s' AND %s='%s' AND %s='%s'", dbSyncDataFiles::field_file_name, dbSyncDataFiles::field_file_size, $dbSyncDataFile->getTableName(), dbSyncDataFiles::field_archive_id, $job[dbSyncDataJobs::field_archive_id], dbSyncDataFiles::field_status, dbSyncDataFiles::status_ok, dbSyncDataFiles::field_action, dbSyncDataFiles::action_add);
+        $files = array();
+        if (!$dbSyncDataFile->sqlExec($SQL, $files))
+    {
+            $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, $dbSyncDataFile->getError()));
+            return false;
+        }
+
+        // Meldung zusammenstellen
+        $info = sprintf($admin->lang()->translate('<p>The backup was completed successfully.</p><p>There were <span class="sync_data_highlight">%s</span> files backed up with a circumference of <span class="sync_data_highlight">%s</span>.</p><p>See the full archive:<br /><a href="%s">%s</a>.'), $files[0][sprintf('COUNT(%s)', dbSyncDataFiles::field_file_name)], $kitTools->bytes2Str($files[0][sprintf('SUM(%s)', dbSyncDataFiles::field_file_size)]), str_replace(CAT_PATH, CAT_URL, $interface->getBackupPath() . $archive[dbSyncDataArchives::field_archive_name] . '.zip'), str_replace(CAT_PATH, CAT_URL, $interface->getBackupPath() . $archive[dbSyncDataArchives::field_archive_name] . '.zip'));
+        $data = array(
+            'form' => array(
+                'name' => 'backup_continue',
+                'link' => $this->page_link,
+                'action' => array(
+                    'name' => self::request_action,
+                    'value' => self::action_default
+                ),
+                'btn' => array(
+                    'ok' => $admin->lang()->translate('Apply')
+                )
+            ),
+            'head' => $admin->lang()->translate('Datensicherung beendet'),
+            'is_intro' => $this->isMessage() ? 0 : 1,
+            'intro' => $this->isMessage() ? $this->getMessage() : $info,
+            'job' => array(
+                'name' => dbSyncDataJobs::field_id,
+                'value' => $job_id
+            )
+        );
+        // Statusmeldung ausgeben
+        return $this->getTemplate('backend.backup.message.tpl', $data);
+
+    } // messageBackupFinished()
+
+    /**
+     * Prompt message: restoring process is interrupted
+     *
+     * @param INT $job_id
+     * @return STR message dialog
+     */
+    public function messageRestoreInterrupt($job_id)
+    {
+        global $dbSyncDataJob;
+        global $kitTools;
+        global $dbSyncDataProtocol;
+        global $dbSyncDataCfg;
+        global $admin;
+
+        $where = array(
+            dbSyncDataJobs::field_id => $job_id
+        );
+        $job   = array();
+        if (!$dbSyncDataJob->sqlSelectRecord($where, $job))
+        {
+            $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, $dbSyncDataJob->getError()));
+            return false;
+        }
+        $job = $job[0];
+
+        // walk through tables and files which are added, deleted or replaced
+        $check_array  = array(
+            dbSyncDataProtocol::action_mysql_add,
+            dbSyncDataProtocol::action_mysql_delete,
+            dbSyncDataProtocol::action_mysql_replace,
+            dbSyncDataProtocol::action_file_add,
+            dbSyncDataProtocol::action_file_delete,
+            dbSyncDataProtocol::action_file_replace
+        );
+        $result_array = array();
+        foreach ($check_array as $action)
+        {
+            $SQL    = sprintf("SELECT COUNT(%s) AS count, SUM(%s) AS bytes FROM %s WHERE %s='%s' AND %s='%s' AND %s='%s'", dbSyncDataProtocol::field_file, dbSyncDataProtocol::field_size, $dbSyncDataProtocol->getTableName(), dbSyncDataProtocol::field_job_id, $job_id, dbSyncDataProtocol::field_action, $action, dbSyncDataProtocol::field_status, dbSyncDataProtocol::status_ok);
+            $result = array();
+            if (!$dbSyncDataProtocol->sqlExec($SQL, $result))
+            {
+                $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, $dbSyncDataProtocol->getError()));
+                return false;
+            }
+            $result_array[$action]['count'] = isset($result[0]['bytes']) ? $result[0]['count'] : 0;
+            $result_array[$action]['bytes'] = isset($result[0]['bytes']) ? $result[0]['bytes'] : 0;
+        }
+
+        $auto_exec_msec = $dbSyncDataCfg->getValue(dbSyncDataCfg::cfgAutoExecMSec);
+        $auto_exec      = $auto_exec_msec > 0 ? sprintf($admin->lang()->translate('<p style="color:red;"><em>AutoExec is active. The process will continue automatically in %d milliseconds.</em></p>'), $auto_exec_msec) : '';
+
+        $info = sprintf(sync_msg_restore_interrupted, $this->max_execution_time, $result_array[dbSyncDataProtocol::action_mysql_delete]['count'], $kitTools->bytes2Str($result_array[dbSyncDataProtocol::action_mysql_delete]['bytes']), $result_array[dbSyncDataProtocol::action_mysql_add]['count'], $kitTools->bytes2Str($result_array[dbSyncDataProtocol::action_mysql_add]['bytes']), $result_array[dbSyncDataProtocol::action_mysql_replace]['count'], $kitTools->bytes2Str($result_array[dbSyncDataProtocol::action_mysql_replace]['bytes']), $result_array[dbSyncDataProtocol::action_file_delete]['count'], $kitTools->bytes2Str($result_array[dbSyncDataProtocol::action_file_delete]['bytes']), $result_array[dbSyncDataProtocol::action_file_add]['count'], $kitTools->bytes2Str($result_array[dbSyncDataProtocol::action_file_add]['bytes']), $result_array[dbSyncDataProtocol::action_file_replace]['count'], $kitTools->bytes2Str($result_array[dbSyncDataProtocol::action_file_replace]['bytes']), $auto_exec);
+
+        $data = array(
+            'form' => array(
+                'name' => 'restore_continue',
+                'link' => $this->page_link,
+                'action' => array(
+                    'name' => self::request_action,
+                    'value' => self::action_restore_continue
+                ),
+                'btn' => array(
+                    'abort' => $admin->lang()->translate('Cancel'),
+                    'ok' => $admin->lang()->translate('Continue ...')
+                )
+            ),
+            'head' => $admin->lang()->translate('Continue the restore ...'),
+            'is_intro' => $this->isMessage() ? 0 : 1,
+            'intro' => $this->isMessage() ? $this->getMessage() : $info,
+            'job' => array(
+                'name' => dbSyncDataJobs::field_id,
+                'value' => $job_id
+            ),
+            'text_process' => sprintf($admin->lang()->translate('<p>The data restore runs.</p><p>Please don\'t close this window and <span class="sync_data_highlight">wait for the status message by syncData you will get after max. %s seconds!</span></p>'), $dbSyncDataCfg->getValue(dbSyncDataCfg::cfgLimitExecutionTime)),
+            'img_url' => $this->img_url,
+            'auto_exec_msec' => $auto_exec_msec
+        );
+        // Statusmeldung ausgeben
+        return $this->getTemplate('backend.restore.interrupt.tpl', $data);
+    } // messageRestoreInterrupt()
+
+    /**
+     * Prompt message: restoring process is finished
+     *
+     * @param INT $job_id
+     * @return STR message dialog
+     */
+    public function messageRestoreFinished($job_id)
+    {
+        global $dbSyncDataJob;
+        global $kitTools;
+        global $dbSyncDataProtocol;
+        global $admin;
+
+        $where = array(
+            dbSyncDataJobs::field_id => $job_id
+        );
+        $job   = array();
+        if (!$dbSyncDataJob->sqlSelectRecord($where, $job))
+        {
+            $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, $dbSyncDataJob->getError()));
+            return false;
+        }
+        $job = $job[0];
+
+        // walk through tables and files which are added, deleted or replaced
+        $check_array  = array(
+            dbSyncDataProtocol::action_mysql_add,
+            dbSyncDataProtocol::action_mysql_delete,
+            dbSyncDataProtocol::action_mysql_replace,
+            dbSyncDataProtocol::action_file_add,
+            dbSyncDataProtocol::action_file_delete,
+            dbSyncDataProtocol::action_file_replace
+        );
+        $result_array = array();
+        foreach ($check_array as $action)
+        {
+            $SQL    = sprintf("SELECT COUNT(%s) AS count, SUM(%s) AS bytes FROM %s WHERE %s='%s' AND %s='%s' AND %s='%s'", dbSyncDataProtocol::field_file, dbSyncDataProtocol::field_size, $dbSyncDataProtocol->getTableName(), dbSyncDataProtocol::field_job_id, $job_id, dbSyncDataProtocol::field_action, $action, dbSyncDataProtocol::field_status, dbSyncDataProtocol::status_ok);
+            $result = array();
+            if (!$dbSyncDataProtocol->sqlExec($SQL, $result))
+            {
+                $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, $dbSyncDataProtocol->getError()));
+                return false;
+            }
+            $result_array[$action]['count'] = isset($result[0]['bytes']) ? $result[0]['count'] : 0;
+            $result_array[$action]['bytes'] = isset($result[0]['bytes']) ? $result[0]['bytes'] : 0;
+        }
+
+        $info = sprintf($admin->lang()->translate('<p>The data restore is complete.</p><p>tables:<br /><ul><li>deleted: %d (%s)</li><li>added: %d (%s)</li><li>changed: %d (%s)</li></ul></p><p>files:<br /><ul><li>deleted: %d (%s)</li><li>added: %d (%s)</li><li>changed: %d (%s)</li></ul></p>'), $result_array[dbSyncDataProtocol::action_mysql_delete]['count'], $kitTools->bytes2Str($result_array[dbSyncDataProtocol::action_mysql_delete]['bytes']), $result_array[dbSyncDataProtocol::action_mysql_add]['count'], $kitTools->bytes2Str($result_array[dbSyncDataProtocol::action_mysql_add]['bytes']), $result_array[dbSyncDataProtocol::action_mysql_replace]['count'], $kitTools->bytes2Str($result_array[dbSyncDataProtocol::action_mysql_replace]['bytes']), $result_array[dbSyncDataProtocol::action_file_delete]['count'], $kitTools->bytes2Str($result_array[dbSyncDataProtocol::action_file_delete]['bytes']), $result_array[dbSyncDataProtocol::action_file_add]['count'], $kitTools->bytes2Str($result_array[dbSyncDataProtocol::action_file_add]['bytes']), $result_array[dbSyncDataProtocol::action_file_replace]['count'], $kitTools->bytes2Str($result_array[dbSyncDataProtocol::action_file_replace]['bytes']));
+
+        $data = array(
+            'form' => array(
+                'name' => 'restore_finished',
+                'link' => $this->page_link,
+                'action' => array(
+                    'name' => self::request_action,
+                    'value' => self::action_default
+                ),
+                'btn' => array(
+                    'ok' => $admin->lang()->translate('Apply')
+                )
+            ),
+            'head' => $admin->lang()->translate('Restore finished!'),
+            'is_intro' => $this->isMessage() ? 0 : 1,
+            'intro' => $this->isMessage() ? $this->getMessage() : $info,
+            'job' => array(
+                'name' => dbSyncDataJobs::field_id,
+                'value' => $job_id
+            )
+        );
+        // Statusmeldung ausgeben
+        return $this->getTemplate('backend.restore.message.tpl', $data);
+    } // messageRestoreFinished()
+
+    /**
+     * Return a message that the update process is interrupted.
+     * Shows some statistics and additional informations.
+     *
+     * @param INT $job_id
+     * @return STR message dialog
+     */
+    public function messageUpdateInterrupt($job_id)
+    {
+        global $dbSyncDataJob;
+        global $dbSyncDataFile;
+        global $kitTools;
+        global $dbSyncDataCfg;
+        global $admin;
+
+        $where = array(
+            dbSyncDataJobs::field_id => $job_id
+        );
+        $job   = array();
+        if (!$dbSyncDataJob->sqlSelectRecord($where, $job))
+        {
+            $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, $dbSyncDataJob->getError()));
+            return false;
+        }
+        $job = $job[0];
+
+        // Anzahl und Umfang der bisher gesicherten Dateien ermitteln
+        $SQL   = sprintf("SELECT COUNT(%s) AS count, SUM(%s) AS bytes FROM %s WHERE %s='%s' AND %s='%s' AND %s='%s' AND (%s='%s' OR %s='%s')", dbSyncDataFiles::field_file_name, dbSyncDataFiles::field_file_size, $dbSyncDataFile->getTableName(), dbSyncDataFiles::field_archive_id, $job[dbSyncDataJobs::field_archive_id], dbSyncDataFiles::field_archive_number, $job[dbSyncDataJobs::field_archive_number], dbSyncDataFiles::field_status, dbSyncDataFiles::status_ok, dbSyncDataFiles::field_action, dbSyncDataFiles::action_add, dbSyncDataFiles::field_action, dbSyncDataFiles::action_replace);
+        $files = array();
+        if (!$dbSyncDataFile->sqlExec($SQL, $files))
+        {
+            $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, $dbSyncDataFile->getError()));
+            return false;
+        }
+
+        $auto_exec_msec = $dbSyncDataCfg->getValue(dbSyncDataCfg::cfgAutoExecMSec);
+        $auto_exec      = $auto_exec_msec > 0 ? sprintf($admin->lang()->translate('<p style="color:red;"><em>AutoExec is active. The process will continue automatically in %d milliseconds.</em></p>'), $auto_exec_msec) : '';
+
+        $info = sprintf($admin->lang()->translate('<p>The update isn\'t complete because not all files could be secured within the maximum execution time for PHP scripts from <span class="sync_data_highlight">%s seconds</span>.</p><p>Until now, <span class="sync_data_highlight">%s</span> files updated with a circumference of <span class="sync_data_highlight">%s</span>.</p><p>Please click "Continue ..." to proceed the update.</p>%s'), $this->max_execution_time, $files[0]['count'], $kitTools->bytes2Str($files[0]['bytes']), $auto_exec);
+        $data = array(
+            'form' => array(
+                'name' => 'update_continue',
+                'link' => $this->page_link,
+                'action' => array(
+                    'name' => self::request_action,
+                    'value' => self::action_update_continue
+                ),
+                'btn' => array(
+                    'abort' => $admin->lang()->translate('Cancel'),
+                    'ok' => $admin->lang()->translate('Continue ...')
+                )
+            ),
+            'head' => $admin->lang()->translate('Continue the update ...'),
+            'is_intro' => $this->isMessage() ? 0 : 1,
+            'intro' => $this->isMessage() ? $this->getMessage() : $info,
+            'job' => array(
+                'name' => dbSyncDataJobs::field_id,
+                'value' => $job_id
+            ),
+            'text_process' => sprintf(sync_msg_update_running, $dbSyncDataCfg->getValue(dbSyncDataCfg::cfgLimitExecutionTime)),
+            'img_url' => $this->img_url,
+            'auto_exec_msec' => $auto_exec_msec
+        );
+        // Statusmeldung ausgeben
+        return $this->getTemplate('backend.backup.interrupt.tpl', $data);
+    } // messageUpdateInterrupt()
+
+    /**
+     * Return a message that the update process is finished.
+     * Shows some statistics and additional informations.
+     *
+     * @param INT $job_id
+     * @return STR message dialog
+     */
+    public function messageUpdateFinished($job_id)
+    {
+        global $dbSyncDataJob;
+        global $dbSyncDataFile;
+        global $kitTools;
+        global $interface;
+        global $dbSyncDataArchive;
+        global $admin;
+
+        $where = array(
+            dbSyncDataJobs::field_id => $job_id
+        );
+        $job   = array();
+        if (!$dbSyncDataJob->sqlSelectRecord($where, $job))
+        {
+            $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, $dbSyncDataJob->getError()));
+            return false;
+        }
+        if (count($job) < 1)
+        {
+            $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, sprintf(sync_error_job_id_invalid, $job_id)));
+            return false;
+        }
+        $job = $job[0];
+
+        $where   = array(
+            dbSyncDataArchives::field_archive_id => $job[dbSyncDataJobs::field_archive_id],
+            dbSyncDataArchives::field_archive_number => $job[dbSyncDataJobs::field_archive_number]
+        );
+        $archive = array();
+        if (!$dbSyncDataArchive->sqlSelectRecord($where, $archive))
+        {
+            $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, $dbSyncDataArchive->getError()));
+            return false;
+        }
+        if (count($archive) < 1)
+        {
+            $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, sprintf(sync_error_archive_id_invalid, $job[dbSyncDataJobs::field_archive_id])));
+            return false;
+        }
+        $archive = $archive[0];
+
+        // Anzahl und Umfang der bisher gesicherten Dateien ermitteln
+        $SQL   = sprintf("SELECT COUNT(%s) AS count, SUM(%s) AS bytes FROM %s WHERE %s='%s' AND %s='%s' AND %s='%s' AND (%s='%s' OR %s='%s')", dbSyncDataFiles::field_file_name, dbSyncDataFiles::field_file_size, $dbSyncDataFile->getTableName(), dbSyncDataFiles::field_archive_id, $job[dbSyncDataJobs::field_archive_id], dbSyncDataFiles::field_archive_number, $job[dbSyncDataJobs::field_archive_number], dbSyncDataFiles::field_status, dbSyncDataFiles::status_ok, dbSyncDataFiles::field_action, dbSyncDataFiles::action_add, dbSyncDataFiles::field_action, dbSyncDataFiles::action_replace);
+        $files = array();
+        if (!$dbSyncDataFile->sqlExec($SQL, $files))
+        {
+            $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, $dbSyncDataFile->getError()));
+            return false;
+        }
+
+        // Meldung zusammenstellen
+        $info = sprintf($admin->lang()->translate('<p>The backup was completed successfully.</p><p>There were <span class="sync_data_highlight">%s</span> files backed up with a circumference of <span class="sync_data_highlight">%s</span>.</p><p>See the full archive:<br /><a href="%s">%s</a>.'), $files[0]['count'], $kitTools->bytes2Str($files[0]['bytes']), str_replace(CAT_PATH, CAT_URL, $interface->getBackupPath() . $archive[dbSyncDataArchives::field_archive_name]), str_replace(CAT_PATH, CAT_URL, $interface->getBackupPath() . $archive[dbSyncDataArchives::field_archive_name]));
+        $data = array(
+            'form' => array(
+                'name' => 'update_finished',
+                'link' => $this->page_link,
+                'action' => array(
+                    'name' => self::request_action,
+                    'value' => self::action_default
+                ),
+                'btn' => array(
+                    'ok' => $admin->lang()->translate('Apply')
+                )
+            ),
+            'head' => $admin->lang()->translate('Update finished'),
+            'is_intro' => $this->isMessage() ? 0 : 1,
+            'intro' => $this->isMessage() ? $this->getMessage() : $info,
+            'job' => array(
+                'name' => dbSyncDataJobs::field_id,
+                'value' => $job_id
+            )
+        );
+        // Statusmeldung ausgeben
+        return $this->getTemplate('backend.backup.message.tpl', $data);
+    } // messageUpdateFinished()
 
     /**
      * About Dialog
@@ -432,9 +794,12 @@ class syncBackend
             'img_url' => $this->img_url . '/syncData_logo.png',
             'release_notes' => $notes,
         );
-        return $this->getTemplate('backend.about.lte', $data);
+        return $this->getTemplate('backend.about.tpl', $data);
     } // end function dlgAbout()
 
+// *****************************************************************************
+//      DIALOGS
+// *****************************************************************************
 
     /**
      * Dialog zur Konfiguration und Anpassung von syncData
@@ -457,9 +822,9 @@ class syncBackend
         }
         $count  = array();
         $header = array(
-            'identifier' => $admin->lang->translate('Setting'),
-            'value' => $admin->lang->translate('Value'),
-            'description' => $admin->lang->translate('Explanation')
+            'identifier' => $admin->lang()->translate('Setting'),
+            'value' => $admin->lang()->translate('Value'),
+            'description' => $admin->lang()->translate('Explanation')
         );
 
         $items = array();
@@ -521,77 +886,17 @@ class syncBackend
             'action_value' => self::action_config_check,
             'items_name' => self::request_items,
             'items_value' => implode(",", $count),
-            'head' => $admin->lang->translate('Settings'),
-            'intro' => $this->isMessage() ? $this->getMessage() : sprintf($admin->lang->translate('<p>Edit the settings for <span class="sync_data_highlight">%s</span>.</p>'), 'syncData'),
+            'head' => $admin->lang()->translate('Settings'),
+            'intro' => $this->isMessage() ? $this->getMessage() : sprintf($admin->lang()->translate('Edit the settings for <span class="sync_data_highlight">%s</span>.'), 'syncData'),
             'is_message' => $this->isMessage() ? 1 : 0,
             'items' => $items,
-            'btn_ok' => $admin->lang->translate('Apply'),
-            'btn_abort' => $admin->lang->translate('Cancel'),
+            'btn_ok' => $admin->lang()->translate('Apply'),
+            'btn_abort' => $admin->lang()->translate('Cancel'),
             'abort_location' => $this->page_link,
             'header' => $header
         );
-        return $this->getTemplate('backend.config.lte', $data);
+        return $this->getTemplate('backend.config.tpl', $data);
     } // dlgConfig()
-
-    /**
-     * Ueberprueft Aenderungen die im Dialog dlgConfig() vorgenommen wurden
-     * und aktualisiert die entsprechenden Datensaetze.
-     *
-     * @return STR DIALOG dlgConfig()
-     */
-    public function checkConfig()
-    {
-        global $dbSyncDataCfg;
-        $message = '';
-        // ueberpruefen, ob ein Eintrag geaendert wurde
-        if ((isset($_REQUEST[self::request_items])) && (!empty($_REQUEST[self::request_items])))
-        {
-            $ids = explode(",", $_REQUEST[self::request_items]);
-            foreach ($ids as $id)
-            {
-                if (isset($_REQUEST[dbSyncDataCfg::field_value . '_' . $id]))
-                {
-                    $value                          = $_REQUEST[dbSyncDataCfg::field_value . '_' . $id];
-                    $where                          = array();
-                    $where[dbSyncDataCfg::field_id] = $id;
-                    $config                         = array();
-                    if (!$dbSyncDataCfg->sqlSelectRecord($where, $config))
-                    {
-                        $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, $dbSyncDataCfg->getError()));
-                        return false;
-                    }
-                    if (sizeof($config) < 1)
-                    {
-                        $this->setError(sprintf(sync_error_cfg_id, $id));
-                        return false;
-                    }
-                    $config = $config[0];
-                    if ($config[dbSyncDataCfg::field_value] != $value)
-                    {
-                        // Wert wurde geaendert
-                        if (!$dbSyncDataCfg->setValue($value, $id) && $dbSyncDataCfg->isError())
-                        {
-                            $this->setError($dbSyncDataCfg->getError());
-                            return false;
-                        }
-                        elseif ($dbSyncDataCfg->isMessage())
-                        {
-                            $message .= $dbSyncDataCfg->getMessage();
-                        }
-                        else
-                        {
-                            // Datensatz wurde aktualisiert
-                            $message .= sprintf(sync_msg_cfg_id_updated, $config[dbSyncDataCfg::field_name]);
-                        }
-                    }
-                    unset($_REQUEST[dbSyncDataCfg::field_value . '_' . $id]);
-                }
-            }
-        }
-        $this->setMessage($message);
-        return $this->dlgConfig();
-    } // checkConfig()
-
 
     /**
      * Dialog: select existing or new backup
@@ -612,7 +917,7 @@ class syncBackend
         $select_array[] = array(
             'value' => -1,
             'selected' => 1,
-            'text' => $admin->lang->translate('- create new backup -'),
+            'text' => $admin->lang()->translate('- create new backup -'),
         );
         foreach ($archives as $archive)
         {
@@ -632,20 +937,20 @@ class syncBackend
                     'value' => self::action_backup_start
                 ),
                 'btn' => array(
-                    'ok' => $admin->lang->translate('Apply')
+                    'ok' => $admin->lang()->translate('Apply')
                 )
             ),
             'backup' => array(
                 'name' => self::request_backup,
-                'label' => $admin->lang->translate('Select backup'),
-                'hint' => $admin->lang->translate(''),
+                'label' => $admin->lang()->translate('Select backup'),
+                'hint' => $admin->lang()->translate(''),
                 'options' => $select_array
             ),
-            'head' => $admin->lang->translate('Datensicherung'),
+            'head' => $admin->lang()->translate('Datensicherung'),
             'is_intro' => $this->isMessage() ? 0 : 1,
-            'intro' => $this->isMessage() ? $this->getMessage() : $admin->lang->translate('<p>Create a new backup or select a backup which will be updated.</p>'),
+            'intro' => $this->isMessage() ? $this->getMessage() : $admin->lang()->translate('Create a new backup or select a backup which will be updated.'),
         );
-        return $this->getTemplate('backend.backup.select.lte', $data);
+        return $this->getTemplate('backend.backup.select.tpl', $data);
     } // dlgBackup()
 
     /**
@@ -672,7 +977,7 @@ class syncBackend
             {
                 $select_array[] = array(
                     'value' => $type['key'],
-                    'text' => $admin->lang->translate($type['value']),
+                    'text' => $admin->lang()->translate($type['value']),
                     'selected' => ($type['key'] == dbSyncDataArchives::backup_type_complete) ? 1 : 0
                 );
             }
@@ -685,28 +990,28 @@ class syncBackend
                         'value' => self::action_backup_start_new
                     ),
                     'btn' => array(
-                        'ok' => $admin->lang->translate('Apply')
+                        'ok' => $admin->lang()->translate('Apply')
                     )
                 ),
                 'backup_type' => array(
                     'name' => dbSyncDataArchives::field_backup_type,
-                    'label' => $admin->lang->translate('Select backup type'),
-                    'hint' => $admin->lang->translate('Choose type of backup'),
+                    'label' => $admin->lang()->translate('Select backup type'),
+                    'hint' => $admin->lang()->translate('Choose type of backup'),
                     'options' => $select_array
                 ),
                 'archive_name' => array(
                     'name' => dbSyncDataArchives::field_archive_name,
                     'value' => '',
-                    'label' => $admin->lang->translate('Name of the archive'),
-                    'hint' => $admin->lang->translate('Give the archive a name'),
+                    'label' => $admin->lang()->translate('Name of the archive'),
+                    'hint' => $admin->lang()->translate('Give the archive a name'),
                 ),
-                'head' => $admin->lang->translate('Neue Datensicherung erstellen'),
+                'head' => $admin->lang()->translate('Neue Datensicherung erstellen'),
                 'is_intro' => $this->isMessage() ? 0 : 1,
-                'intro' => $this->isMessage() ? $this->getMessage() : $admin->lang->translate('<p>Select the type of data backup and give the archive a name.</p>'),
-                'text_process' => sprintf($admin->lang->translate('<p>The backup runs.</p><p>Please don\'t close this window and <span class="sync_data_highlight">wait for the status message by syncData you will get after max. %s seconds!</span></p>'), $dbSyncDataCfg->getValue(dbSyncDataCfg::cfgLimitExecutionTime)),
+                'intro' => $this->isMessage() ? $this->getMessage() : $admin->lang()->translate('Select the type of data backup and give the archive a name.'),
+                'text_process' => sprintf($admin->lang()->translate('<p>The backup runs.</p><p>Please don\'t close this window and <span class="sync_data_highlight">wait for the status message by syncData you will get after max. %s seconds!</span></p>'), $dbSyncDataCfg->getValue(dbSyncDataCfg::cfgLimitExecutionTime)),
                 'img_url' => $this->img_url
             );
-            return $this->getTemplate('backend.backup.new.lte', $data);
+            return $this->getTemplate('backend.backup.new.tpl', $data);
         }
         else
         {
@@ -748,32 +1053,32 @@ class syncBackend
 
             $values = array(
                 array(
-                    'label' => $admin->lang->translate('Archive ID'),
+                    'label' => $admin->lang()->translate('Archive ID'),
                     'text' => $archive[dbSyncDataArchives::field_archive_id]
                 ),
                 array(
-                    'label' => $admin->lang->translate('Archive number'),
+                    'label' => $admin->lang()->translate('Archive number'),
                     'text' => $archive[dbSyncDataArchives::field_archive_number]
                 ),
                 array(
-                    'label' => $admin->lang->translate('Archive type'),
+                    'label' => $admin->lang()->translate('Archive type'),
                     'text' => $dbSyncDataArchive->backup_type_array_text[$archive[dbSyncDataArchives::field_archive_type]]
                 ),
                 array(
-                    'label' => $admin->lang->translate('Total files'),
+                    'label' => $admin->lang()->translate('Total files'),
                     'text' => $files['count']
                 ),
                 array(
-                    'label' => $admin->lang->translate('Total size'),
+                    'label' => $admin->lang()->translate('Total size'),
                     'text' => $kitTools->bytes2Str($files['bytes'])
                 ),
                 array(
-                    'label' => $admin->lang->translate('Timestamp'),
+                    'label' => $admin->lang()->translate('Timestamp'),
                     'text' => date(sync_cfg_datetime_str, strtotime($archive[dbSyncDataArchives::field_timestamp]))
                 )
             );
             $info   = array(
-                'label' => $admin->lang->translate('Archive information'),
+                'label' => $admin->lang()->translate('Archive information'),
                 'values' => $values
             );
 
@@ -790,27 +1095,319 @@ class syncBackend
                         'value' => $archiv_id
                     ),
                     'btn' => array(
-                        'ok' => $admin->lang->translate('Apply'),
-                        'abort' => $admin->lang->translate('Cancel')
+                        'ok' => $admin->lang()->translate('Apply'),
+                        'abort' => $admin->lang()->translate('Cancel')
                     )
                 ),
                 'info' => $info,
                 'archive_name' => array(
                     'name' => dbSyncDataArchives::field_archive_name,
                     'value' => '',
-                    'label' => $admin->lang->translate('Name of the archive'),
-                    'hint' => $admin->lang->translate('Give the archive a name'),
+                    'label' => $admin->lang()->translate('Name of the archive'),
+                    'hint' => $admin->lang()->translate('Give the archive a name'),
                 ),
-                'head' => $admin->lang->translate('Datensicherung aktualisieren'),
+                'head' => $admin->lang()->translate('Datensicherung aktualisieren'),
                 'is_intro' => $this->isMessage() ? 0 : 1,
-                'intro' => $this->isMessage() ? $this->getMessage() : $admin->lang->translate('<p>Check that the correct backup archive will be updated and give the update archive a name.</p>'),
-                'text_process' => sprintf($admin->lang->translate('<p>The backup runs.</p><p>Please don\'t close this window and <span class="sync_data_highlight">wait for the status message by syncData you will get after max. %s seconds!</span></p>'), $dbSyncDataCfg->getValue(dbSyncDataCfg::cfgLimitExecutionTime)),
+                'intro' => $this->isMessage() ? $this->getMessage() : $admin->lang()->translate('Check that the correct backup archive will be updated and give the update archive a name.'),
+                'text_process' => sprintf($admin->lang()->translate('<p>The backup runs.</p><p>Please don\'t close this window and <span class="sync_data_highlight">wait for the status message by syncData you will get after max. %s seconds!</span></p>'), $dbSyncDataCfg->getValue(dbSyncDataCfg::cfgLimitExecutionTime)),
                 'img_url' => $this->img_url
             );
-            return $this->getTemplate('backend.backup.update.lte', $data);
+            return $this->getTemplate('backend.backup.update.tpl', $data);
         }
     } // dlgBackupStart()
 
+    /**
+     * Dialog zur Auswahl des Backup Archiv, das fuer einen Restore verwendet
+     * werden soll
+     *
+     * @access public
+     * @return string  dialog
+     */
+    public function dlgRestore()
+    {
+        global $interface, $admin;
+
+        if (!file_exists($interface->getBackupPath()))
+        {
+            if (!mkdir($interface->getBackupPath(), 0755, true))
+            {
+                $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, sprintf(sync_error_mkdir, $interface->getBackupPath())));
+                return false;
+            }
+            else {
+                $interface->createAccessFiles($interface->getBackupPath());
+            }
+        }
+        $arcs     = $interface->directoryTree($interface->getBackupPath());
+        $archives = array();
+        foreach ($arcs as $arc)
+        {
+            if (is_file($arc) && (pathinfo($arc, PATHINFO_EXTENSION) == 'zip'))
+                $archives[] = $arc;
+        }
+
+        $select_array   = array();
+        $select_array[] = array(
+            'value'    => -1,
+            'selected' => 1,
+            'text'     => $admin->lang()->translate('- select restore -'),
+        );
+
+        foreach ($archives as $archive)
+        {
+            $select_array[] = array(
+                'value'    => str_replace(CAT_PATH, '', $archive),
+                'selected' => 0,
+                'text'     => basename($archive)
+            );
+        }
+
+        if (count($archives) < 1)
+        {
+            // Mitteilung: kein Archiv gefunden!
+            $dir = str_replace(CAT_PATH, '', $interface->getBackupPath());
+            $this->setMessage(sprintf($admin->lang()->translate('<p>No backups were found in the directory <span class="sync_data_highlight">%s</span>, which can be used for a restore.</p><p></p>Transfer the archive files manually via FTP to the directory <span class="sync_data_highlight">%s</span> and you call this dialogue again.</p>'), $dir, $dir));
+        }
+
+        $data = array(
+            'form' => array(
+                'name' => 'restore_select',
+                'link' => $this->page_link,
+                'action' => array(
+                    'name'  => self::request_action,
+                    'value' => self::action_restore_info
+                ),
+                'btn' => array(
+                    'ok' => $admin->lang()->translate('Apply')
+                )
+            ),
+            'restore' => array(
+                'name'    => self::request_restore,
+                'label'   => $admin->lang()->translate('Choose a restore!'),
+                'hint'    => $admin->lang()->translate(''),
+                'options' => $select_array
+            ),
+            'head'     => $admin->lang()->translate('Start restore'),
+            'is_intro' => $this->isMessage() ? 0 : 1,
+            'intro'    => $this->isMessage() ? $this->getMessage() : $admin->lang()->translate('Select the backup to be used for data recovery.'),
+        );
+
+        return $this->getTemplate('backend.restore.start.tpl', $data);
+    } // dlgRestore()
+
+    /**
+     *
+     * @access public
+     * @return
+     **/
+    public function dlgSelectModules()
+    {
+        global $admin, $dbSyncDataCfg;
+
+        $modules   = CAT_Helper_Addons::get_addons(NULL,'module');
+        $templates = CAT_Helper_Addons::get_addons(NULL,'template');
+        $languages = CAT_Helper_Addons::get_addons(NULL,'language');
+
+        // exclude modules that are configured in cfgIgnoreDirectories
+        $ig_dir = $dbSyncDataCfg->getValue(dbSyncDataCfg::cfgIgnoreDirectories);
+        $ig_dir = explode("\n", $ig_dir);
+        $ig_mods = array();
+        foreach($ig_dir as $dir) {
+            if(!preg_match('~/modules/~i',$dir)) continue;
+            $ig_mods[] = pathinfo($dir,PATHINFO_FILENAME);
+        }
+        foreach($ig_mods as $dir) {
+            CAT_Helper_Array::ArrayRemove($dir,$modules,"directory");
+        }
+
+        $data = array(
+            'form' => array(
+                'name' => 'backup_select',
+                'link' => $this->page_link,
+                'action' => array(
+                    'name'  => self::request_action,
+                    'value' => self::action_backup_start_new_selective
+                ),
+                'btn' => array(
+                    'ok' => $admin->lang()->translate('Apply')
+                )
+            ),
+            'modules'   => $modules,
+            'templates' => $templates,
+            'languages' => $languages,
+            'head'      => $admin->lang()->translate('Choose modules'),
+            'is_intro'  => $this->isMessage() ? 0 : 1,
+            'intro'     => $this->isMessage() ? $this->getMessage() : $admin->lang()->translate('Choose the modules you wish to backup.'),
+        );
+
+        return $this->getTemplate('backend.backup.select.modules.tpl', $data);
+    
+    }   // end function dlgSelectModules()
+
+    /**
+     * Return Version of Module
+     *
+     * @access public
+     * @return FLOAT
+     */
+    public function getVersion()
+    {
+        // read info.php into array
+        $info_text = file(sanitize_path(dirname(__FILE__).'/../info.php'));
+        if ($info_text == false)
+        {
+            return -1;
+        }
+        // walk through array
+        foreach ($info_text as $item)
+        {
+            if (strpos($item, '$module_version') !== false)
+            {
+                // split string $module_version
+                $value = explode('=', $item);
+                // return floatval
+                return floatval(preg_replace('([\'";,\(\)[:space:][:alpha:]])', '', $value[1]));
+            }
+        }
+        return -1;
+    } // end function getVersion()
+
+    /**
+     * Get the desired $template within the template path, fills in the
+     * $template_data and return the template output
+     *
+     * @access public
+     * @param  string  $template
+     * @param  array   $template_data
+     * @return mixed   template or FALSE on error
+     */
+    public function getTemplate($template, $template_data)
+        {
+        global $parser;
+        $result = '';
+        try
+            {
+            $result = $parser->get($template, $template_data);
+        }
+        catch (Exception $e)
+                {
+            $this->setError(sprintf(sync_error_template_error, $template, $e->getMessage()));
+                    return false;
+                }
+        return $result;
+    } // end function getTemplate()
+
+
+    /**
+     * protect against XSS Cross Site Scripting
+     *
+     * @access public
+     * @param  REFERENCE $_REQUEST Array
+     * @return $request
+     */
+    public function xssPrevent(&$request)
+    {
+        if (is_string($request))
+                {
+            $request = html_entity_decode($request);
+            $request = strip_tags($request);
+            $request = trim($request);
+            $request = stripslashes($request);
+                }
+        return $request;
+    } // end function xssPrevent()
+
+    /**
+     * Ausgabe des formatierten Ergebnis mit Navigationsleiste
+     *
+     * @access public
+     * @param  string  $action  - aktives Navigationselement
+     * @param  string  $content - Inhalt
+     * @return ECHO RESULT
+     */
+    public function show($action, $content)
+    {
+        global $admin;
+        $navigation = array();
+        $header     = '';
+        foreach ($this->tab_navigation_array as $key => $value)
+            {
+            $navigation[] = array(
+                'active' => ($key == $action) ? 1 : 0,
+                'url'    => sprintf('%s&%s=%s', $this->page_link, self::request_action, $key),
+                'text'   => $admin->lang()->translate($value),
+                'icon'   => $this->tab_navigation_icon_array[$key]
+            );
+            $header = ($key == $action) ? $key : $header;
+        }
+        $data = array(
+            'navigation' => $navigation,
+            'error'      => ($this->isError()) ? 1 : 0,
+            'content'    => ($this->isError()) ? $this->getError() : $content,
+            'header'     => $admin->lang()->translate($this->headers[$header]),
+        );
+        echo $this->getTemplate('backend.body.tpl', $data);
+        echo $this->getError();
+    } // end function show()
+
+    /**
+     * Ueberprueft Aenderungen die im Dialog dlgConfig() vorgenommen wurden
+     * und aktualisiert die entsprechenden Datensaetze.
+     *
+     * @return STR DIALOG dlgConfig()
+     */
+    public function checkConfig()
+    {
+        global $dbSyncDataCfg, $admin;
+        $message = '';
+        // ueberpruefen, ob ein Eintrag geaendert wurde
+        if ((isset($_REQUEST[self::request_items])) && (!empty($_REQUEST[self::request_items])))
+        {
+            $ids = explode(",", $_REQUEST[self::request_items]);
+            foreach ($ids as $id)
+            {
+                if (isset($_REQUEST[dbSyncDataCfg::field_value . '_' . $id]))
+                {
+                    $value                          = $_REQUEST[dbSyncDataCfg::field_value . '_' . $id];
+                    $where                          = array();
+                    $where[dbSyncDataCfg::field_id] = $id;
+                    $config                         = array();
+                    if (!$dbSyncDataCfg->sqlSelectRecord($where, $config))
+                    {
+                        $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, $dbSyncDataCfg->getError()));
+                        return false;
+                    }
+                    if (sizeof($config) < 1)
+                    {
+                        $this->setError(sprintf(sync_error_cfg_id, $id));
+                        return false;
+                    }
+                    $config = $config[0];
+                    if ($config[dbSyncDataCfg::field_value] != $value)
+                    {
+                        // Wert wurde geaendert
+                        if (!$dbSyncDataCfg->setValue($value, $id) && $dbSyncDataCfg->isError())
+                        {
+                            $this->setError($dbSyncDataCfg->getError());
+                            return false;
+                        }
+                        elseif ($dbSyncDataCfg->isMessage())
+                        {
+                            $message .= $dbSyncDataCfg->getMessage();
+                        }
+                        else
+                        {
+                            // Datensatz wurde aktualisiert
+                            $message .= sprintf($admin->lang()->translate('<p>The configuration record with the identifier <span class="sync_data_highlight">%s</span> has been updated.</p>'), $config[dbSyncDataCfg::field_name]);
+                        }
+                    }
+                    unset($_REQUEST[dbSyncDataCfg::field_value . '_' . $id]);
+                }
+            }
+        }
+        $this->setMessage($message);
+        return $this->dlgConfig();
+    } // checkConfig()
 
     /**
      * Legt ein neues Backup Archiv an und startet die Datensicherung
@@ -823,8 +1420,18 @@ class syncBackend
 
         $backup_name = (isset($_REQUEST[dbSyncDataArchives::field_archive_name]) && !empty($_REQUEST[dbSyncDataArchives::field_archive_name]))
                      ? $_REQUEST[dbSyncDataArchives::field_archive_name]
-                     : sprintf($admin->lang->translate('backup of data from %s'), date(sync_cfg_datetime_str));
-        $backup_type = (isset($_REQUEST[dbSyncDataArchives::field_backup_type])) ? $_REQUEST[dbSyncDataArchives::field_backup_type] : dbSyncDataArchives::backup_type_complete;
+                     : sprintf($admin->lang()->translate('backup of data from %s'), date(sync_cfg_datetime_str));
+        $backup_type = (isset($_REQUEST[dbSyncDataArchives::field_backup_type]))
+                     ? $_REQUEST[dbSyncDataArchives::field_backup_type]
+                     : dbSyncDataArchives::backup_type_complete;
+
+        if ( $backup_type == dbSyncDataArchives::backup_type_selective )
+        {
+            if ( $_REQUEST[self::request_action] !== self::action_backup_start_new_selective )
+            {
+                return $this->dlgSelectModules();
+            }
+        }
 
         $job_id = -1;
         $status = $interface->backupStart($backup_name, $backup_type, $job_id);
@@ -849,157 +1456,6 @@ class syncBackend
             return false;
         }
     } // backupStartNewArchive()
-
-    /**
-     * Generate and show a message that the backup is interrupted,
-     * shows the actual state of backup
-     *
-     * @param INT $job_id
-     * @return STR message dialog
-     */
-    public function messageBackupInterrupt($job_id)
-    {
-        global $dbSyncDataJob;
-        global $dbSyncDataFile;
-        global $kitTools;
-        global $dbSyncDataCfg;
-        global $admin;
-
-        $where = array(
-            dbSyncDataJobs::field_id => $job_id
-        );
-        $job   = array();
-        if (!$dbSyncDataJob->sqlSelectRecord($where, $job))
-        {
-            $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, $dbSyncDataJob->getError()));
-            return false;
-        }
-        $job = $job[0];
-
-        // Anzahl und Umfang der bisher gesicherten Dateien ermitteln
-        $SQL   = sprintf("SELECT COUNT(%s) AS count, SUM(%s) AS bytes FROM %s WHERE %s='%s' AND %s='%s' AND %s='%s'", dbSyncDataFiles::field_file_name, dbSyncDataFiles::field_file_size, $dbSyncDataFile->getTableName(), dbSyncDataFiles::field_archive_id, $job[dbSyncDataJobs::field_archive_id], //$archive_id,
-            dbSyncDataFiles::field_status, dbSyncDataFiles::status_ok, dbSyncDataFiles::field_action, dbSyncDataFiles::action_add);
-        $files = array();
-        if (!$dbSyncDataFile->sqlExec($SQL, $files))
-        {
-            $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, $dbSyncDataFile->getError()));
-            return false;
-        }
-        $auto_exec_msec = $dbSyncDataCfg->getValue(dbSyncDataCfg::cfgAutoExecMSec);
-        $auto_exec      = $auto_exec_msec > 0 ? sprintf($admin->lang->translate('<p style="color:red;"><em>AutoExec is active. The process will continue automatically in %d milliseconds.</em></p>'), $auto_exec_msec) : '';
-        $info           = sprintf($admin->lang->translate('<p>The update isn\'t complete because not all files could be secured within the maximum execution time for PHP scripts from <span class="sync_data_highlight">%s seconds</span>.</p><p>Until now, <span class="sync_data_highlight">%s</span> files updated with a circumference of <span class="sync_data_highlight">%s</span>.</p><p>Please click "Continue ..." to proceed the update.</p>%s'), $this->max_execution_time, $files[0]['count'], $kitTools->bytes2Str($files[0]['bytes']), $auto_exec);
-        $data           = array(
-            'form' => array(
-                'name' => 'backup_continue',
-                'link' => $this->page_link,
-                'action' => array(
-                    'name' => self::request_action,
-                    'value' => self::action_backup_continue
-                ),
-                'btn' => array(
-                    'abort' => $admin->lang->translate('Cancel'),
-                    'ok' => $admin->lang->translate('Continue ...')
-                )
-            ),
-            'head' => $admin->lang->translate('Datensicherung fortsetzen'),
-            'is_intro' => $this->isMessage() ? 0 : 1,
-            'intro' => $this->isMessage() ? $this->getMessage() : $info,
-            'job' => array(
-                'name' => dbSyncDataJobs::field_id,
-                'value' => $job_id
-            ),
-            'text_process' => sprintf($admin->lang->translate('<p>The backup runs.</p><p>Please don\'t close this window and <span class="sync_data_highlight">wait for the status message by syncData you will get after max. %s seconds!</span></p>'), $dbSyncDataCfg->getValue(dbSyncDataCfg::cfgLimitExecutionTime)),
-            'img_url' => $this->img_url,
-            'auto_exec_msec' => $auto_exec_msec
-        );
-        // Statusmeldung ausgeben
-        return $this->getTemplate('backend.backup.interrupt.lte', $data);
-    } // messageBackupInterrupt()
-
-    /**
-     * Generate and show a message that the backup is finished.
-     * Shows the main stats of the backup
-     *
-     * @param INT $job_id
-     * @return STR message dialog
-     */
-    public function messageBackupFinished($job_id)
-    {
-        global $dbSyncDataJob;
-        global $dbSyncDataFile;
-        global $kitTools;
-        global $interface;
-        global $dbSyncDataArchive;
-        global $admin;
-
-        $where = array(
-            dbSyncDataJobs::field_id => $job_id
-        );
-        $job   = array();
-        if (!$dbSyncDataJob->sqlSelectRecord($where, $job))
-        {
-            $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, $dbSyncDataJob->getError()));
-            return false;
-        }
-        if (count($job) < 1)
-        {
-            $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, sprintf(sync_error_job_id_invalid, $job_id)));
-            return false;
-        }
-        $job = $job[0];
-
-        $where   = array(
-            dbSyncDataArchives::field_archive_id => $job[dbSyncDataJobs::field_archive_id],
-            dbSyncDataArchives::field_archive_number => $job[dbSyncDataJobs::field_archive_number]
-        );
-        $archive = array();
-        if (!$dbSyncDataArchive->sqlSelectRecord($where, $archive))
-        {
-            $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, $dbSyncDataArchive->getError()));
-            return false;
-        }
-        if (count($archive) < 1)
-        {
-            $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, sprintf(sync_error_archive_id_invalid, $job[dbSyncDataJobs::field_archive_id])));
-            return false;
-        }
-        $archive = $archive[0];
-
-        // Anzahl und Umfang der bisher gesicherten Dateien ermitteln
-        $SQL   = sprintf("SELECT COUNT(%s), SUM(%s) FROM %s WHERE %s='%s' AND %s='%s' AND %s='%s'", dbSyncDataFiles::field_file_name, dbSyncDataFiles::field_file_size, $dbSyncDataFile->getTableName(), dbSyncDataFiles::field_archive_id, $job[dbSyncDataJobs::field_archive_id], dbSyncDataFiles::field_status, dbSyncDataFiles::status_ok, dbSyncDataFiles::field_action, dbSyncDataFiles::action_add);
-        $files = array();
-        if (!$dbSyncDataFile->sqlExec($SQL, $files))
-        {
-            $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, $dbSyncDataFile->getError()));
-            return false;
-        }
-
-        // Meldung zusammenstellen
-        $info = sprintf($admin->lang->translate('<p>The backup was completed successfully.</p><p>There were <span class="sync_data_highlight">%s</span> files backed up with a circumference of <span class="sync_data_highlight">%s</span>.</p><p>See the full archive:<br /><a href="%s">%s</a>.'), $files[0][sprintf('COUNT(%s)', dbSyncDataFiles::field_file_name)], $kitTools->bytes2Str($files[0][sprintf('SUM(%s)', dbSyncDataFiles::field_file_size)]), str_replace(CAT_PATH, CAT_URL, $interface->getBackupPath() . $archive[dbSyncDataArchives::field_archive_name] . '.zip'), str_replace(CAT_PATH, CAT_URL, $interface->getBackupPath() . $archive[dbSyncDataArchives::field_archive_name] . '.zip'));
-        $data = array(
-            'form' => array(
-                'name' => 'backup_continue',
-                'link' => $this->page_link,
-                'action' => array(
-                    'name' => self::request_action,
-                    'value' => self::action_default
-                ),
-                'btn' => array(
-                    'ok' => $admin->lang->translate('Apply')
-                )
-            ),
-            'head' => $admin->lang->translate('Datensicherung beendet'),
-            'is_intro' => $this->isMessage() ? 0 : 1,
-            'intro' => $this->isMessage() ? $this->getMessage() : $info,
-            'job' => array(
-                'name' => dbSyncDataJobs::field_id,
-                'value' => $job_id
-            )
-        );
-        // Statusmeldung ausgeben
-        return $this->getTemplate('backend.backup.message.lte', $data);
-
-    } // messageBackupFinished()
 
 
     /*
@@ -1037,112 +1493,32 @@ class syncBackend
         else
         {
             // in allen anderen Faellen ist nichts zu tun
-            $this->setMessage($admin->lang->translate('<p>There is nothing to do - task completed.</p>'));
-            $data = array(
-                'form' => array(
+            $this->setMessage($admin->lang()->translate('<p>There is nothing to do - task completed.</p>'));
+        $data = array(
+            'form' => array(
                     'name' => 'backup_stop',
-                    'link' => $this->page_link,
-                    'action' => array(
-                        'name' => self::request_action,
+                'link' => $this->page_link,
+                'action' => array(
+                    'name'  => self::request_action,
                         'value' => self::action_default
-                    ),
-                    'btn' => array(
-                        'abort' => $admin->lang->translate('Cancel'),
-                        'ok' => $admin->lang->translate('Apply')
-                    )
                 ),
-                'head' => $admin->lang->translate('Datensicherung fortsetzen'),
+                'btn' => array(
+                        'abort' => $admin->lang()->translate('Cancel'),
+                        'ok' => $admin->lang()->translate('Apply')
+                )
+            ),
+                'head' => $admin->lang()->translate('Datensicherung fortsetzen'),
                 'is_intro' => 0, // Meldung anzeigen
                 'intro' => $this->getMessage(),
                 'job' => array(
                     'name' => dbSyncDataJobs::field_id,
                     'value' => $job_id
                 )
-            );
+        );
             // Statusmeldung ausgeben
-            return $this->getTemplate('backend.backup.message.lte', $data);
+            return $this->getTemplate('backend.backup.message.tpl', $data);
         }
     } // backupContinue()
-
-
-    /**
-     * Dialog zur Auswahl des Backup Archiv, das fuer einen Restore verwendet
-     * werden soll
-     *
-     * @access public
-     * @return string  dialog
-     */
-    public function dlgRestore()
-    {
-        global $interface, $admin;
-
-        if (!file_exists($interface->getBackupPath()))
-        {
-            if (!mkdir($interface->getBackupPath(), 0755, true))
-            {
-                $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, sprintf(sync_error_mkdir, $interface->getBackupPath())));
-                return false;
-            }
-            else {
-                $interface->createAccessFiles($interface->getBackupPath());
-            }
-        }
-        $arcs     = $interface->directoryTree($interface->getBackupPath());
-        $archives = array();
-        foreach ($arcs as $arc)
-        {
-            if (is_file($arc) && (pathinfo($arc, PATHINFO_EXTENSION) == 'zip'))
-                $archives[] = $arc;
-        }
-
-        $select_array   = array();
-        $select_array[] = array(
-            'value'    => -1,
-            'selected' => 1,
-            'text'     => $admin->lang->translate('- select restore -'),
-        );
-
-        foreach ($archives as $archive)
-        {
-            $select_array[] = array(
-                'value'    => str_replace(CAT_PATH, '', $archive),
-                'selected' => 0,
-                'text'     => basename($archive)
-            );
-        }
-
-        if (count($archives) < 1)
-        {
-            // Mitteilung: kein Archiv gefunden!
-            $dir = str_replace(CAT_PATH, '', $interface->getBackupPath());
-            $this->setMessage(sprintf($admin->lang->translate('<p>No backups were found in the directory <span class="sync_data_highlight">%s</span>, which can be used for a restore.</p><p></p>Transfer the archive files manually via FTP to the directory <span class="sync_data_highlight">%s</span> and you call this dialogue again.</p>'), $dir, $dir));
-        }
-
-        $data = array(
-            'form' => array(
-                'name' => 'restore_select',
-                'link' => $this->page_link,
-                'action' => array(
-                    'name'  => self::request_action,
-                    'value' => self::action_restore_info
-                ),
-                'btn' => array(
-                    'ok' => $admin->lang->translate('Apply')
-                )
-            ),
-            'restore' => array(
-                'name'    => self::request_restore,
-                'label'   => $admin->lang->translate('Choose a restore!'),
-                'hint'    => $admin->lang->translate(''),
-                'options' => $select_array
-            ),
-            'head'     => $admin->lang->translate('Start restore'),
-            'is_intro' => $this->isMessage() ? 0 : 1,
-            'intro'    => $this->isMessage() ? $this->getMessage() : $admin->lang->translate('<p>Select the backup from which will be used for data recovery.</p>'),
-        );
-
-        return $this->getTemplate('backend.restore.start.lte', $data);
-    } // dlgRestore()
 
     /**
      * Prueft das angegebene Archiv und startet einen Dialog zum Festlegen
@@ -1163,7 +1539,7 @@ class syncBackend
         if (!$backup_archive)
         {
             // kein gueltiges Archiv angegeben, Meldung setzen und zurueck zum Auswahldialog
-            $this->setMessage($admin->lang->translate('<p>The system got no backup of data that could be recovered.</p>'));
+            $this->setMessage($admin->lang()->translate('<p>The system got no backup of data that could be recovered.</p>'));
             return $this->dlgRestore();
         }
 
@@ -1191,132 +1567,132 @@ class syncBackend
         // Werte setzen
         $values = array(
             array(
-                'label' => $admin->lang->translate('Archive ID'),
+                'label' => $admin->lang()->translate('Archive ID'),
                 'text' => $ini_data[syncDataInterface::section_general][dbSyncDataJobs::field_archive_id]
             ),
             array(
-                'label' => $admin->lang->translate('Archive number'),
+                'label' => $admin->lang()->translate('Archive number'),
                 'text' => $ini_data[syncDataInterface::section_general][dbSyncDataJobs::field_archive_number]
             ),
             array(
-                'label' => $admin->lang->translate('Archive type'),
+                'label' => $admin->lang()->translate('Archive type'),
                 'text' => $dbSyncDataJob->job_type_array[$ini_data[syncDataInterface::section_general][dbSyncDataJobs::field_type]]
             ),
             array(
-                'label' => $admin->lang->translate('Total files'),
+                'label' => $admin->lang()->translate('Total files'),
                 'text' => $ini_data[syncDataInterface::section_general]['total_files']
             ),
             array(
-                'label' => $admin->lang->translate('Total size'),
+                'label' => $admin->lang()->translate('Total size'),
                 'text' => $kitTools->bytes2Str($ini_data[syncDataInterface::section_general]['total_size'])
             ),
             array(
-                'label' => sync_label_wb_url,
+                'label' => $admin->lang()->translate('CMS URL'),
                 'text' => $ini_data[syncDataInterface::section_general]['used_wb_url']
             ),
             array(
-                'label' => $admin->lang->translate('Status'),
+                'label' => $admin->lang()->translate('Status'),
                 'text' => $ini_data[syncDataInterface::section_general][dbSyncDataJobs::field_last_message]
             ),
             array(
-                'label' => $admin->lang->translate('Timestamp'),
+                'label' => $admin->lang()->translate('Timestamp'),
                 'text' => date(sync_cfg_datetime_str, strtotime($ini_data[syncDataInterface::section_general][dbSyncDataJobs::field_timestamp]))
             )
         );
         $info   = array(
-            'label' => $admin->lang->translate('Archive information'),
+            'label' => $admin->lang()->translate('Archive information'),
             'values' => $values
         );
 
         $restore = array(
             'select' => array(
-                'label' => $admin->lang->translate('Restore'),
+                'label' => $admin->lang()->translate('Restore'),
                 'select' => array(
                     array(
                         'name' => dbSyncDataJobs::field_type,
                         'value' => dbSyncDataJobs::type_restore_mysql,
-                        'text' => $admin->lang->translate('MySQL tables'),
+                        'text' => $admin->lang()->translate('MySQL tables'),
                         'checked' => 1,
                         'enabled' => ($restore_tables && ($ini_data[syncDataInterface::section_general][dbSyncDataJobs::field_type] == dbSyncDataJobs::type_backup_complete) || ($ini_data[syncDataInterface::section_general][dbSyncDataJobs::field_type] == dbSyncDataJobs::type_backup_mysql)) ? 1 : 0
                     ),
                     array(
                         'name' => dbSyncDataJobs::field_type,
                         'value' => dbSyncDataJobs::type_restore_files,
-                        'text' => $admin->lang->translate('Files'),
+                        'text' => $admin->lang()->translate('Files'),
                         'checked' => 1,
                         'enabled' => ($restore_files && ($ini_data[syncDataInterface::section_general][dbSyncDataJobs::field_type] == dbSyncDataJobs::type_backup_complete) || ($ini_data[syncDataInterface::section_general][dbSyncDataJobs::field_type] == dbSyncDataJobs::type_backup_files)) ? 1 : 0
                     )
                 )
             ),
             'mode' => array(
-                'label' => $admin->lang->translate('Mode'),
+                'label' => $admin->lang()->translate('Mode'),
                 'select' => array(
                     array(
                         'name' => dbSyncDataJobs::field_restore_mode,
                         'value' => dbSyncDataJobs::mode_changed_binary,
-                        'text' => $admin->lang->translate('replace changed tables and files (binary comparison, <i>very slow!</i>)'),
+                        'text' => $admin->lang()->translate('replace changed tables and files (binary comparison, <i>very slow!</i>)'),
                         'checked' => 0
                     ),
                     array(
                         'name' => dbSyncDataJobs::field_restore_mode,
                         'value' => dbSyncDataJobs::mode_changed_date_size,
-                        'text' => $admin->lang->translate('replace changed tables and files (check date & size)'),
+                        'text' => $admin->lang()->translate('replace changed tables and files (check date & size)'),
                         'checked' => 1
                     ),
                     array(
                         'name' => dbSyncDataJobs::field_restore_mode,
                         'value' => dbSyncDataJobs::mode_replace_all,
-                        'text' => $admin->lang->translate('replace all tables and files'),
+                        'text' => $admin->lang()->translate('replace all tables and files'),
                         'checked' => 0
                     )
                 )
             ),
             'replace' => array(
                 'url' => array(
-                    'label' => $admin->lang->translate('Search & Replace'),
+                    'label' => $admin->lang()->translate('Search & Replace'),
                     'name' => dbSyncDataJobs::field_replace_wb_url, //self::request_restore_replace_url,
                     'value' => 1,
-                    'text' => $admin->lang->translate('update Base URL in MySQL tables'),
+                    'text' => $admin->lang()->translate('update Base URL in MySQL tables'),
                     'checked' => 1
                 ),
                 'prefix' => array(
-                    'label' => $admin->lang->translate('Replace'),
+                    'label' => $admin->lang()->translate('Replace'),
                     'name' => dbSyncDataJobs::field_replace_table_prefix, //self::request_restore_replace_prefix,
                     'value' => 1,
-                    'text' => $admin->lang->translate('update TABLE_PREFIX in MySQL tables'),
+                    'text' => $admin->lang()->translate('update TABLE_PREFIX in MySQL tables'),
                     'checked' => 1
                 )
             ),
             'ignore' => array(
                 'config' => array(
-                    'label' => $admin->lang->translate('Ignore'),
+                    'label' => $admin->lang()->translate('Ignore'),
                     'name' => dbSyncDataJobs::field_ignore_config,
                     'value' => 1,
-                    'text' => $admin->lang->translate('config.php'),
+                    'text' => $admin->lang()->translate('config.php'),
                     'checked' => 1
                 ),
                 'htaccess' => array(
-                    'label' => $admin->lang->translate('Ignore'),
+                    'label' => $admin->lang()->translate('Ignore'),
                     'name' => dbSyncDataJobs::field_ignore_htaccess,
                     'value' => 1,
-                    'text' => $admin->lang->translate('.htaccess'),
+                    'text' => $admin->lang()->translate('.htaccess'),
                     'checked' => 1
                 )
             ),
             'delete' => array(
                 'tables' => array(
-                    'label' => $admin->lang->translate('Delete'),
+                    'label' => $admin->lang()->translate('Delete'),
                     'name' => dbSyncDataJobs::field_delete_tables,
                     'value' => 1,
-                    'text' => $admin->lang->translate('delete existing tables which are not included in the archive'),
+                    'text' => $admin->lang()->translate('delete existing tables which are not included in the archive'),
                     'checked' => 0,
                     'enabled' => 1
                 ),
                 'files' => array(
-                    'label' => $admin->lang->translate('Delete'),
+                    'label' => $admin->lang()->translate('Delete'),
                     'name' => dbSyncDataJobs::field_delete_files,
                     'value' => 1,
-                    'text' => $admin->lang->translate('delete existing files which are not included in the archive'),
+                    'text' => $admin->lang()->translate('delete existing files which are not included in the archive'),
                     'checked' => 0,
                     'enabled' => 1
                 )
@@ -1336,20 +1712,20 @@ class syncBackend
                     'value' => $backup_archive
                 ),
                 'btn' => array(
-                    'ok' => $admin->lang->translate('Start ...'),
-                    'abort' => $admin->lang->translate('Cancel')
+                    'ok' => $admin->lang()->translate('Start ...'),
+                    'abort' => $admin->lang()->translate('Cancel')
                 )
             ),
             'info' => $info,
             'restore' => $restore,
-            'head' => $admin->lang->translate('Start restore'),
+            'head' => $admin->lang()->translate('Start restore'),
             'is_intro' => $this->isMessage() ? 0 : 1,
-            'intro' => $this->isMessage() ? $this->getMessage() : $admin->lang->translate('<p>Please check! Is the selected backup of data right one -  should it be restored?</p><p>Define the settings for restore and then start the process.</p>'),
-            'text_process' => sprintf($admin->lang->translate('<p>The data restore runs.</p><p>Please don\'t close this window and <span class="sync_data_highlight">wait for the status message by syncData you will get after max. %s seconds!</span></p>'), $dbSyncDataCfg->getValue(dbSyncDataCfg::cfgLimitExecutionTime)),
+            'intro' => $this->isMessage() ? $this->getMessage() : $admin->lang()->translate('Please check! Is the selected backup of data right one -  should it be restored?<br /><br />Define the settings for restore and then start the process.'),
+            'text_process' => sprintf($admin->lang()->translate('<p>The data restore runs.</p><p>Please don\'t close this window and <span class="sync_data_highlight">wait for the status message by syncData you will get after max. %s seconds!</span></p>'), $dbSyncDataCfg->getValue(dbSyncDataCfg::cfgLimitExecutionTime)),
             'img_url' => $this->img_url
         );
 
-        return $this->getTemplate('backend.restore.archive.info.lte', $data);
+        return $this->getTemplate('backend.restore.archive.info.tpl', $data);
     } // restoreInfo()
 
     /**
@@ -1366,7 +1742,7 @@ class syncBackend
         if ($backup_archive == -1)
         {
             // kein gueltiges Archiv angegeben, Meldung setzen und zurueck zum Auswahldialog
-            $this - set_error(sprintf('[%s - %s] %s', __METHOD__, __LINE__, $admin->lang->translate('<p>There was no valid backup archive specified!</p>')));
+            $this - set_error(sprintf('[%s - %s] %s', __METHOD__, __LINE__, $admin->lang()->translate('<p>There was no valid backup archive specified!</p>')));
             return false;
         }
 
@@ -1402,7 +1778,7 @@ class syncBackend
         else
         {
             // unknown status ...
-            $this->setError(sprintf('[%s %s] %s', __METHOD__, __LINE__, $admin->lang->translate('<p>Unknown status. Please contact the support.</p>')));
+            $this->setError(sprintf('[%s %s] %s', __METHOD__, __LINE__, $admin->lang()->translate('<p>Unknown status. Please contact the support.</p>')));
             return false;
         }
     } // restoreStart()
@@ -1416,7 +1792,7 @@ class syncBackend
 
         if ($job_id < 1)
         {
-            $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, $admin->lang->translate('<p>Can not find a job with the synData ID <span class="sync_data_highlight">%s</span>!</p>')));
+            $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, $admin->lang()->translate('<p>Can not find a job with the synData ID <span class="sync_data_highlight">%s</span>!</p>')));
             return false;
         }
 
@@ -1427,7 +1803,6 @@ class syncBackend
             $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, $interface->getError()));
             return false;
         }
-
         if ($status == dbSyncDataJobs::status_time_out)
         {
             // interrupt restore
@@ -1445,160 +1820,6 @@ class syncBackend
             return false;
         }
     } // restoreContinue()
-
-    /**
-     * Prompt message: restoring process is interrupted
-     *
-     * @param INT $job_id
-     * @return STR message dialog
-     */
-    public function messageRestoreInterrupt($job_id)
-    {
-        global $dbSyncDataJob;
-        global $kitTools;
-        global $dbSyncDataProtocol;
-        global $dbSyncDataCfg;
-        global $admin;
-
-        $where = array(
-            dbSyncDataJobs::field_id => $job_id
-        );
-        $job   = array();
-        if (!$dbSyncDataJob->sqlSelectRecord($where, $job))
-        {
-            $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, $dbSyncDataJob->getError()));
-            return false;
-        }
-        $job = $job[0];
-
-        // walk through tables and files which are added, deleted or replaced
-        $check_array  = array(
-            dbSyncDataProtocol::action_mysql_add,
-            dbSyncDataProtocol::action_mysql_delete,
-            dbSyncDataProtocol::action_mysql_replace,
-            dbSyncDataProtocol::action_file_add,
-            dbSyncDataProtocol::action_file_delete,
-            dbSyncDataProtocol::action_file_replace
-        );
-        $result_array = array();
-        foreach ($check_array as $action)
-        {
-            $SQL    = sprintf("SELECT COUNT(%s) AS count, SUM(%s) AS bytes FROM %s WHERE %s='%s' AND %s='%s' AND %s='%s'", dbSyncDataProtocol::field_file, dbSyncDataProtocol::field_size, $dbSyncDataProtocol->getTableName(), dbSyncDataProtocol::field_job_id, $job_id, dbSyncDataProtocol::field_action, $action, dbSyncDataProtocol::field_status, dbSyncDataProtocol::status_ok);
-            $result = array();
-            if (!$dbSyncDataProtocol->sqlExec($SQL, $result))
-            {
-                $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, $dbSyncDataProtocol->getError()));
-                return false;
-            }
-            $result_array[$action]['count'] = isset($result[0]['bytes']) ? $result[0]['count'] : 0;
-            $result_array[$action]['bytes'] = isset($result[0]['bytes']) ? $result[0]['bytes'] : 0;
-        }
-
-        $auto_exec_msec = $dbSyncDataCfg->getValue(dbSyncDataCfg::cfgAutoExecMSec);
-        $auto_exec      = $auto_exec_msec > 0 ? sprintf($admin->lang->translate('<p style="color:red;"><em>AutoExec is active. The process will continue automatically in %d milliseconds.</em></p>'), $auto_exec_msec) : '';
-
-        $info = sprintf(sync_msg_restore_interrupted, $this->max_execution_time, $result_array[dbSyncDataProtocol::action_mysql_delete]['count'], $kitTools->bytes2Str($result_array[dbSyncDataProtocol::action_mysql_delete]['bytes']), $result_array[dbSyncDataProtocol::action_mysql_add]['count'], $kitTools->bytes2Str($result_array[dbSyncDataProtocol::action_mysql_add]['bytes']), $result_array[dbSyncDataProtocol::action_mysql_replace]['count'], $kitTools->bytes2Str($result_array[dbSyncDataProtocol::action_mysql_replace]['bytes']), $result_array[dbSyncDataProtocol::action_file_delete]['count'], $kitTools->bytes2Str($result_array[dbSyncDataProtocol::action_file_delete]['bytes']), $result_array[dbSyncDataProtocol::action_file_add]['count'], $kitTools->bytes2Str($result_array[dbSyncDataProtocol::action_file_add]['bytes']), $result_array[dbSyncDataProtocol::action_file_replace]['count'], $kitTools->bytes2Str($result_array[dbSyncDataProtocol::action_file_replace]['bytes']), $auto_exec);
-
-        $data = array(
-            'form' => array(
-                'name' => 'restore_continue',
-                'link' => $this->page_link,
-                'action' => array(
-                    'name' => self::request_action,
-                    'value' => self::action_restore_continue
-                ),
-                'btn' => array(
-                    'abort' => $admin->lang->translate('Cancel'),
-                    'ok' => $admin->lang->translate('Continue ...')
-                )
-            ),
-            'head' => $admin->lang->translate('Continue the restore ...'),
-            'is_intro' => $this->isMessage() ? 0 : 1,
-            'intro' => $this->isMessage() ? $this->getMessage() : $info,
-            'job' => array(
-                'name' => dbSyncDataJobs::field_id,
-                'value' => $job_id
-            ),
-            'text_process' => sprintf($admin->lang->translate('<p>The data restore runs.</p><p>Please don\'t close this window and <span class="sync_data_highlight">wait for the status message by syncData you will get after max. %s seconds!</span></p>'), $dbSyncDataCfg->getValue(dbSyncDataCfg::cfgLimitExecutionTime)),
-            'img_url' => $this->img_url,
-            'auto_exec_msec' => $auto_exec_msec
-        );
-        // Statusmeldung ausgeben
-        return $this->getTemplate('backend.restore.interrupt.lte', $data);
-    } // messageRestoreInterrupt()
-
-    /**
-     * Prompt message: restoring process is finished
-     *
-     * @param INT $job_id
-     * @return STR message dialog
-     */
-    public function messageRestoreFinished($job_id)
-    {
-        global $dbSyncDataJob;
-        global $kitTools;
-        global $dbSyncDataProtocol;
-        global $admin;
-
-        $where = array(
-            dbSyncDataJobs::field_id => $job_id
-        );
-        $job   = array();
-        if (!$dbSyncDataJob->sqlSelectRecord($where, $job))
-        {
-            $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, $dbSyncDataJob->getError()));
-            return false;
-        }
-        $job = $job[0];
-
-        // walk through tables and files which are added, deleted or replaced
-        $check_array  = array(
-            dbSyncDataProtocol::action_mysql_add,
-            dbSyncDataProtocol::action_mysql_delete,
-            dbSyncDataProtocol::action_mysql_replace,
-            dbSyncDataProtocol::action_file_add,
-            dbSyncDataProtocol::action_file_delete,
-            dbSyncDataProtocol::action_file_replace
-        );
-        $result_array = array();
-        foreach ($check_array as $action)
-        {
-            $SQL    = sprintf("SELECT COUNT(%s) AS count, SUM(%s) AS bytes FROM %s WHERE %s='%s' AND %s='%s' AND %s='%s'", dbSyncDataProtocol::field_file, dbSyncDataProtocol::field_size, $dbSyncDataProtocol->getTableName(), dbSyncDataProtocol::field_job_id, $job_id, dbSyncDataProtocol::field_action, $action, dbSyncDataProtocol::field_status, dbSyncDataProtocol::status_ok);
-            $result = array();
-            if (!$dbSyncDataProtocol->sqlExec($SQL, $result))
-            {
-                $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, $dbSyncDataProtocol->getError()));
-                return false;
-            }
-            $result_array[$action]['count'] = isset($result[0]['bytes']) ? $result[0]['count'] : 0;
-            $result_array[$action]['bytes'] = isset($result[0]['bytes']) ? $result[0]['bytes'] : 0;
-        }
-
-        $info = sprintf($admin->lang->translate('<p>The data restore is complete.</p><p>tables:<br /><ul><li>deleted: %d (%s)</li><li>added: %d (%s)</li><li>changed: %d (%s)</li></ul></p><p>files:<br /><ul><li>deleted: %d (%s)</li><li>added: %d (%s)</li><li>changed: %d (%s)</li></ul></p>'), $result_array[dbSyncDataProtocol::action_mysql_delete]['count'], $kitTools->bytes2Str($result_array[dbSyncDataProtocol::action_mysql_delete]['bytes']), $result_array[dbSyncDataProtocol::action_mysql_add]['count'], $kitTools->bytes2Str($result_array[dbSyncDataProtocol::action_mysql_add]['bytes']), $result_array[dbSyncDataProtocol::action_mysql_replace]['count'], $kitTools->bytes2Str($result_array[dbSyncDataProtocol::action_mysql_replace]['bytes']), $result_array[dbSyncDataProtocol::action_file_delete]['count'], $kitTools->bytes2Str($result_array[dbSyncDataProtocol::action_file_delete]['bytes']), $result_array[dbSyncDataProtocol::action_file_add]['count'], $kitTools->bytes2Str($result_array[dbSyncDataProtocol::action_file_add]['bytes']), $result_array[dbSyncDataProtocol::action_file_replace]['count'], $kitTools->bytes2Str($result_array[dbSyncDataProtocol::action_file_replace]['bytes']));
-
-        $data = array(
-            'form' => array(
-                'name' => 'restore_finished',
-                'link' => $this->page_link,
-                'action' => array(
-                    'name' => self::request_action,
-                    'value' => self::action_default
-                ),
-                'btn' => array(
-                    'ok' => $admin->lang->translate('Apply')
-                )
-            ),
-            'head' => $admin->lang->translate('Restore finished!'),
-            'is_intro' => $this->isMessage() ? 0 : 1,
-            'intro' => $this->isMessage() ? $this->getMessage() : $info,
-            'job' => array(
-                'name' => dbSyncDataJobs::field_id,
-                'value' => $job_id
-            )
-        );
-        // Statusmeldung ausgeben
-        return $this->getTemplate('backend.restore.message.lte', $data);
-    } // messageRestoreFinished()
 
     /**
      * Start the process of updating an existing backup.
@@ -1672,183 +1893,32 @@ class syncBackend
         else
         {
             // in allen anderen Faellen ist nichts zu tun
-            $this->setMessage($admin->lang->translate('<p>There is nothing to do - task completed.</p>'));
-            $data = array(
-                'form' => array(
+            $this->setMessage($admin->lang()->translate('<p>There is nothing to do - task completed.</p>'));
+        $data = array(
+            'form' => array(
                     'name' => 'update_stop',
-                    'link' => $this->page_link,
-                    'action' => array(
-                        'name' => self::request_action,
-                        'value' => self::action_default
-                    ),
-                    'btn' => array(
-                        'abort' => $admin->lang->translate('Cancel'),
-                        'ok' => $admin->lang->translate('Apply')
-                    )
-                ),
-                'head' => $admin->lang->translate('Continue the update ...'),
-                'is_intro' => 0, // Meldung anzeigen
-                'intro' => $this->getMessage(),
-                'job' => array(
-                    'name' => dbSyncDataJobs::field_id,
-                    'value' => $job_id
-                )
-            );
-            // Statusmeldung ausgeben
-            return $this->getTemplate('backend.backup.message.lte', $data);
-        }
-    } // updateContinue()
-
-    /**
-     * Return a message that the update process is interrupted.
-     * Shows some statistics and additional informations.
-     *
-     * @param INT $job_id
-     * @return STR message dialog
-     */
-    public function messageUpdateInterrupt($job_id)
-    {
-        global $dbSyncDataJob;
-        global $dbSyncDataFile;
-        global $kitTools;
-        global $dbSyncDataCfg;
-        global $admin;
-
-        $where = array(
-            dbSyncDataJobs::field_id => $job_id
-        );
-        $job   = array();
-        if (!$dbSyncDataJob->sqlSelectRecord($where, $job))
-        {
-            $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, $dbSyncDataJob->getError()));
-            return false;
-        }
-        $job = $job[0];
-
-        // Anzahl und Umfang der bisher gesicherten Dateien ermitteln
-        $SQL   = sprintf("SELECT COUNT(%s) AS count, SUM(%s) AS bytes FROM %s WHERE %s='%s' AND %s='%s' AND %s='%s' AND (%s='%s' OR %s='%s')", dbSyncDataFiles::field_file_name, dbSyncDataFiles::field_file_size, $dbSyncDataFile->getTableName(), dbSyncDataFiles::field_archive_id, $job[dbSyncDataJobs::field_archive_id], dbSyncDataFiles::field_archive_number, $job[dbSyncDataJobs::field_archive_number], dbSyncDataFiles::field_status, dbSyncDataFiles::status_ok, dbSyncDataFiles::field_action, dbSyncDataFiles::action_add, dbSyncDataFiles::field_action, dbSyncDataFiles::action_replace);
-        $files = array();
-        if (!$dbSyncDataFile->sqlExec($SQL, $files))
-        {
-            $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, $dbSyncDataFile->getError()));
-            return false;
-        }
-
-        $auto_exec_msec = $dbSyncDataCfg->getValue(dbSyncDataCfg::cfgAutoExecMSec);
-        $auto_exec      = $auto_exec_msec > 0 ? sprintf($admin->lang->translate('<p style="color:red;"><em>AutoExec is active. The process will continue automatically in %d milliseconds.</em></p>'), $auto_exec_msec) : '';
-
-        $info = sprintf($admin->lang->translate('<p>The update isn\'t complete because not all files could be secured within the maximum execution time for PHP scripts from <span class="sync_data_highlight">%s seconds</span>.</p><p>Until now, <span class="sync_data_highlight">%s</span> files updated with a circumference of <span class="sync_data_highlight">%s</span>.</p><p>Please click "Continue ..." to proceed the update.</p>%s'), $this->max_execution_time, $files[0]['count'], $kitTools->bytes2Str($files[0]['bytes']), $auto_exec);
-        $data = array(
-            'form' => array(
-                'name' => 'update_continue',
-                'link' => $this->page_link,
-                'action' => array(
-                    'name' => self::request_action,
-                    'value' => self::action_update_continue
-                ),
-                'btn' => array(
-                    'abort' => $admin->lang->translate('Cancel'),
-                    'ok' => $admin->lang->translate('Continue ...')
-                )
-            ),
-            'head' => $admin->lang->translate('Continue the update ...'),
-            'is_intro' => $this->isMessage() ? 0 : 1,
-            'intro' => $this->isMessage() ? $this->getMessage() : $info,
-            'job' => array(
-                'name' => dbSyncDataJobs::field_id,
-                'value' => $job_id
-            ),
-            'text_process' => sprintf(sync_msg_update_running, $dbSyncDataCfg->getValue(dbSyncDataCfg::cfgLimitExecutionTime)),
-            'img_url' => $this->img_url,
-            'auto_exec_msec' => $auto_exec_msec
-        );
-        // Statusmeldung ausgeben
-        return $this->getTemplate('backend.backup.interrupt.lte', $data);
-    } // messageUpdateInterrupt()
-
-    /**
-     * Return a message that the update process is finished.
-     * Shows some statistics and additional informations.
-     *
-     * @param INT $job_id
-     * @return STR message dialog
-     */
-    public function messageUpdateFinished($job_id)
-    {
-        global $dbSyncDataJob;
-        global $dbSyncDataFile;
-        global $kitTools;
-        global $interface;
-        global $dbSyncDataArchive;
-        global $admin;
-
-        $where = array(
-            dbSyncDataJobs::field_id => $job_id
-        );
-        $job   = array();
-        if (!$dbSyncDataJob->sqlSelectRecord($where, $job))
-        {
-            $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, $dbSyncDataJob->getError()));
-            return false;
-        }
-        if (count($job) < 1)
-        {
-            $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, sprintf(sync_error_job_id_invalid, $job_id)));
-            return false;
-        }
-        $job = $job[0];
-
-        $where   = array(
-            dbSyncDataArchives::field_archive_id => $job[dbSyncDataJobs::field_archive_id],
-            dbSyncDataArchives::field_archive_number => $job[dbSyncDataJobs::field_archive_number]
-        );
-        $archive = array();
-        if (!$dbSyncDataArchive->sqlSelectRecord($where, $archive))
-        {
-            $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, $dbSyncDataArchive->getError()));
-            return false;
-        }
-        if (count($archive) < 1)
-        {
-            $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, sprintf(sync_error_archive_id_invalid, $job[dbSyncDataJobs::field_archive_id])));
-            return false;
-        }
-        $archive = $archive[0];
-
-        // Anzahl und Umfang der bisher gesicherten Dateien ermitteln
-        $SQL   = sprintf("SELECT COUNT(%s) AS count, SUM(%s) AS bytes FROM %s WHERE %s='%s' AND %s='%s' AND %s='%s' AND (%s='%s' OR %s='%s')", dbSyncDataFiles::field_file_name, dbSyncDataFiles::field_file_size, $dbSyncDataFile->getTableName(), dbSyncDataFiles::field_archive_id, $job[dbSyncDataJobs::field_archive_id], dbSyncDataFiles::field_archive_number, $job[dbSyncDataJobs::field_archive_number], dbSyncDataFiles::field_status, dbSyncDataFiles::status_ok, dbSyncDataFiles::field_action, dbSyncDataFiles::action_add, dbSyncDataFiles::field_action, dbSyncDataFiles::action_replace);
-        $files = array();
-        if (!$dbSyncDataFile->sqlExec($SQL, $files))
-        {
-            $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, $dbSyncDataFile->getError()));
-            return false;
-        }
-
-        // Meldung zusammenstellen
-        $info = sprintf($admin->lang->translate('<p>The backup was completed successfully.</p><p>There were <span class="sync_data_highlight">%s</span> files backed up with a circumference of <span class="sync_data_highlight">%s</span>.</p><p>See the full archive:<br /><a href="%s">%s</a>.'), $files[0]['count'], $kitTools->bytes2Str($files[0]['bytes']), str_replace(CAT_PATH, CAT_URL, $interface->getBackupPath() . $archive[dbSyncDataArchives::field_archive_name]), str_replace(CAT_PATH, CAT_URL, $interface->getBackupPath() . $archive[dbSyncDataArchives::field_archive_name]));
-        $data = array(
-            'form' => array(
-                'name' => 'update_finished',
                 'link' => $this->page_link,
                 'action' => array(
                     'name' => self::request_action,
                     'value' => self::action_default
                 ),
                 'btn' => array(
-                    'ok' => $admin->lang->translate('Apply')
+                        'abort' => $admin->lang()->translate('Cancel'),
+                        'ok' => $admin->lang()->translate('Apply')
                 )
             ),
-            'head' => $admin->lang->translate('Update finished'),
-            'is_intro' => $this->isMessage() ? 0 : 1,
-            'intro' => $this->isMessage() ? $this->getMessage() : $info,
+                'head' => $admin->lang()->translate('Continue the update ...'),
+                'is_intro' => 0, // Meldung anzeigen
+                'intro' => $this->getMessage(),
             'job' => array(
                 'name' => dbSyncDataJobs::field_id,
                 'value' => $job_id
             )
         );
         // Statusmeldung ausgeben
-        return $this->getTemplate('backend.backup.message.lte', $data);
-    } // messageUpdateFinished()
+            return $this->getTemplate('backend.backup.message.tpl', $data);
+        }
+    } // updateContinue()
 
 } // class syncBackend
 

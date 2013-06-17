@@ -9,8 +9,8 @@
  * @license GNU GPL (http://www.gnu.org/licenses/gpl.html)
  * @version $Id$
  */
-if (file_exists(CAT_PATH.'/modules/sync_data/class.synchronize.php')) {
-	require_once(CAT_PATH.'/modules/sync_data/class.synchronize.php');
+if (file_exists(CAT_PATH.'/modules/syncData/class.synchronize.php')) {
+	require_once(CAT_PATH.'/modules/syncData/class.synchronize.php');
 	$client = new syncClient();
 	$params = $client->getParams();
 	$params[syncClient::param_preset] = (isset($preset)) ? (int) $preset : 1;

@@ -40,89 +40,60 @@ if (defined('CAT_PATH')) {
 }
 
 // ----- default config for Germany -----
-define('sync_cfg_time_zone'                     , 'Europe/Berlin');
-define('sync_cfg_datetime_str'                  , 'd.m.Y H:i');
-
-define('sync_label_wb_path'                     , 'WB_PATH');
-define('sync_label_wb_url'                      , 'WB_URL');
-
-
-define('sync_label_cfg_auto_exec_msec',			'AutoExec in Millisekunden');
-define('sync_label_cfg_filemtime_diff_allowed',	'Erlaubte Zeitdifferenz');
-define('sync_label_cfg_ignore_directories',		'Ignorierte Verzeichnisse');
-define('sync_label_cfg_ignore_file_extensions',	'Ignorierte Dateiendungen');
-define('sync_label_cfg_ignore_tables',			'Ignorierte MySQL Tabellen');
-define('sync_label_cfg_limit_execution_time',	'Limit Script Ausführungsdauer');
-define('sync_label_cfg_memory_limit',			'Speicherbegrenzung');
-define('sync_label_cfg_max_execution_time',		'Max. Script Ausführungsdauer');
-define('sync_label_cfg_server_active',			'syncData Server');
-define('sync_label_cfg_server_archive_id',		'Archiv ID für die Synchronisation');
-define('sync_label_cfg_server_url',				'syncData Server URL');
-
-define('sync_desc_cfg_auto_exec_msec',			'Die Wartezeit in Millisekunden, bis syncData einen unterbrochenen Prozess automatisch fortsetzt. Beträgt der Wert <span class="sync_data_highlight">0</span>, wird die automatische Fortsetzung ausgeschaltet. Der Standardwert ist <span class="sync_data_highlight">5000</span> Millisekunden.');
-define('sync_desc_cfg_filemtime_diff_allowed',	'Erlaubte Abweichung beim <span class="sync_data_highlight">filemtime()</span> Vergleich in Sekunden, der Standardwert ist 1 Sekunde.');
-define('sync_desc_cfg_limit_execution_time',	'Limit der Ausführungsdauer in Sekunden. Bei Erreichen des Wertes bricht das Script die Ausführung ab, um ein Überschreiten der <span class="sync_data_highlight">maximalen Ausführungsdauer</span> zu verhindern.');
-define('sync_desc_cfg_max_execution_time',		'Maximale Ausführungsdauer der Scripts in Sekunden. Der Standardwert beträgt 30 Sekunden');
-define('sync_desc_cfg_memory_limit',			'Maximaler Speicher (RAM), der syncData für die Ausführung der Scripts zur Verfügung steht. Die Angabe erfolgt in <span class="sync_data_highlight">Bytes</span> als Integer Wert oder als <a href="http://it.php.net/manual/de/faq.using.php#faq.using.shorthandbytes" target="_blank">abgekürzter Byte-Wert</a>, z.B. "256M".');
-define('sync_desc_cfg_ignore_directories',		'Verzeichnisse, die von syncData grundsätzlich ignoriert werden sollen.');
-define('sync_desc_cfg_ignore_file_extensions',	'Dateien mit den angegebenen Endungen werden von syncData grundsätzlich ignoriert. Trennen Sie die Einträge mit einem Komma.');
-define('sync_desc_cfg_ignore_tables',			'MySQL Tabellen, die von syncData grundsätzlich ignoriert werden sollen. Achten Sie darauf, dass Sie die Tabellen <span class="sync_data_highlight">ohne TABLE_PREFIX</span> (lep_, wb_ o.ä.) angeben.');
-define('sync_desc_cfg_server_active',			'Geben Sie diese syncData Installation als Server frei, wenn sich andere syncData Clients mit dieser Installation synchronisieren sollen.<br />0 = Server AUS, 1 = Server EIN');
-define('sync_desc_cfg_server_archive_id',		'Wählen Sie die <span class="sync_data_highlight">ID</span> des Sicherungsarchiv aus, das für eine Synchronisation verwendet werden soll.');
-define('sync_desc_cfg_server_url',				'Wenn Sie diese syncData Installation als <span class="sync_data_highlight">Client</span> verwenden, geben Sie hier die vollständige URL des syncData <span class="sync_data_highlight">Server</span> an.');
-
-
-
+if(!defined('sync_cfg_time_zone'))    define('sync_cfg_time_zone'                     , 'Europe/Berlin');
+if(!defined('sync_cfg_datetime_str')) define('sync_cfg_datetime_str'                  , 'd.m.Y H:i');
 
 $LANG = array(
-    // installation
+// ----- installation -----
     'The Droplets for %s were successfully installed. You will find further informations about the use of Droplets in the dokumentation!'
         => 'Die Droplets fuer %s wurden erfolgreich installiert. Informationen zur Verwendung der Droplets finden Sie in der Dokumentation!',
     'The installation of the Droplets is unfortunately failed for %s - Error message: %s'
         => 'Die Installation der Droplets fuer %s ist leider fehlgeschlagen, Fehlermeldung: %s',
-    // sync types
+// ----- sync types -----
     'complete (database and files)' => 'Vollständig (Datenbank und Dateien)',
+    'selective (database and selected modules)' => 'Selektiv (Datenbank und ausgewählte Module)',
     'only database (MySQL)' => 'nur die MySQL Datenbank',
     'only files' => 'nur die Dateien',
-    // tabs
+// ----- tabs -----
     'About' => 'Über',
     'Backup' => 'Sichern',
     'Settings' => 'Einstellungen',
     'Restore' => 'Restaurieren',
-    // buttons
+// ----- buttons -----
     'Cancel' => 'Abbruch',
     'Apply' => 'Übernehmen',
     'Continue ...' => 'Fortsetzen ...',
     'Start ...' => 'Starten ...',
-    // Label
-    'Select backup' => 'Backup auswählen',
-    'Select backup type' => 'Sicherungstyp auswählen',
-    'Name of the archive' => 'Name für das Archiv',
-    'Choose a restore!' => 'Rücksicherung auswählen',
+// ----- Label -----
+    '.htaccess' => '.htaccess',
     'Archive ID' => 'Archiv ID',
     'Archive information' => 'Archiv Information',
     'Archive number' => 'Archiv Nummer',
     'Archive type' => 'Archiv Typ',
-    'Status' => 'Status',
-    'Restore' => 'Restaurieren',
+    'Choose a restore!' => 'Rücksicherung auswählen',
+    'config.php' => 'config.php',
     'Delete' => 'Löschen',
     'delete existing files which are not included in the archive' => 'vorhandene Dateien löschen, die nicht im Archiv enthalten sind',
     'delete existing tables which are not included in the archive' => 'vorhandene Tabellen löschen, die nicht im Archiv enthalten sind',
-    'Ignore' => 'Ignorieren',
-    'config.php' => 'config.php',
-    '.htaccess' => '.htaccess',
-    'Mode' => 'Modus',
-    'replace changed tables and files (check date & size)' => 'geänderte Tabellen und Dateien ersetzen (Datum & Größe prüfen)',
-    'replace changed tables and files (binary comparison, <i>very slow!</i>)' => 'geänderte Tabellen und Dateien ersetzen (binärer Vergleich, <i>sehr langsam!</i>)',
-    'replace all tables and files' => 'alle Tabellen und Dateien ersetzen',
-    'Search & Replace' => 'Suchen & Ersetzen',
-    'update TABLE_PREFIX in MySQL tables' => 'TABLE_PREFIX in MySQL Tabellen aktualisieren',
-    'update Base URL in MySQL tables' => 'Basis-URL in MySQL Tabellen aktualisieren',
-    'Choose a restore!' => 'Rücksicherung auswählen',
-    'MySQL tables' => 'MySQL Tabellen',
     'Files' => 'Dateien',
-
-    // header
+    'Ignore' => 'Ignorieren',
+    'Languages' => 'Sprachen',
+    'Mode' => 'Modus',
+    'Modules' => 'Module',
+    'MySQL tables' => 'MySQL Tabellen',
+    'Name of the archive' => 'Name für das Archiv',
+    'replace all tables and files' => 'alle Tabellen und Dateien ersetzen',
+    'replace changed tables and files (binary comparison, <i>very slow!</i>)' => 'geänderte Tabellen und Dateien ersetzen (binärer Vergleich, <i>sehr langsam!</i>)',
+    'replace changed tables and files (check date & size)' => 'geänderte Tabellen und Dateien ersetzen (Datum & Größe prüfen)',
+    'Restore' => 'Restaurieren',
+    'Search & Replace' => 'Suchen & Ersetzen',
+    'Select backup' => 'Backup auswählen',
+    'Select backup type' => 'Sicherungstyp auswählen',
+    'Status' => 'Status',
+    'Templates' => 'Templates',
+    'update Base URL in MySQL tables' => 'Basis-URL in MySQL Tabellen aktualisieren',
+    'update TABLE_PREFIX in MySQL tables' => 'TABLE_PREFIX in MySQL Tabellen aktualisieren',
+// ----- header -----
     'Backup of data' => 'Datensicherung',
     'Continue the backup of data ...' => 'Datensicherung fortsetzen',
     'Backup of data finished!' => 'Datensicherung beendet',
@@ -137,11 +108,12 @@ $LANG = array(
     'Value' => 'Wert',
     'Continue the update ...' => 'Aktualisierung fortsetzen',
     'Update finished' => 'Aktualisierung beendet',
-    // hint
+    'Edit the settings for <span class="sync_data_highlight">%s</span>.' => 'Einstellungen ändern für <span class="sync_data_highlight">%s</span>.',
+// ----- hint -----
     'Choose type of backup' => 'Wählen Sie den gewünschten Backup-Typ',
     'Give the archive a name' => 'Geben Sie dem Archiv einen Namen',
 
-    // errors
+// ----- errors -----
     '<p>The system got no backup of data that could be recovered.</p>'
         => '<p>Es wurde keine Datensicherung übergeben, die wiederhergestellt werden kann.</p>',
     '<p>The directory <span class="sync_data_highlight">%s</span> could not be created!</p>'
@@ -166,17 +138,20 @@ $LANG = array(
         => '<p>Die Dateiliste enthält keine Dateien für ein Restore!</p>',
     '<p>The file list doesn\'t contain MySQL files!</p>'
         => '<p>Die Dateiliste enthält keine MySQL Dateien!</p>',
+    '<p>The preset directory <span class="sync_data_highlight">%s</span> does not exist, the necessary templates can not be loaded!</p>'
+        => '<p>Das Presetverzeichnis <span class="sync_data_highlight">%s</span> existiert nicht, die erforderlichen Templates können nicht geladen werden!</p>',
 
-    // intro
-    '<p>Create a new backup or select a backup which will be updated.</p>' => '<p>Erstellen Sie ein neues Backup oder wählen Sie ein Backup aus, das aktualisiert werden soll.</p>',
-    '<p>Select the type of data backup and give the archive a name.</p>' => '<p>Wählen Sie die Art der Datensicherung aus und geben Sie dem Archiv einen Namen.</p>',
-    '<p>Check that the correct backup archive will be updated and give the update archive a name.</p>' => '<p>Prüfen Sie, ob das richtige Backup Archiv aktualisiert wird und geben Sie dem Update Archiv einen Namen.</p>',
-    '<p>Edit the settings for <span class="sync_data_highlight">%s</span>.</p>' => '<p>Bearbeiten Sie die Einstellungen für <span class="sync_data_highlight">%s</span>.</p>',
-    '<p>Select the backup from which will be used for data recovery.</p>' => '<p>Wählen Sie die Datensicherung aus, die für die Herstellung von Daten verwendet werden soll.</p>',
-    '<p>Please check! Is the selected backup of data right one -  should it be restored?</p><p>Define the settings for restore and then start the process.</p>' => '<p>Bitte prüfen Sie, ob es sich um die gewünschte Datensicherung handelt.</p><p>Legen Sie die Art der Rücksicherung fest und starten Sie danach den Restore.</p>',
-    '<p>Edit the settings for <span class="sync_data_highlight">%s</span>.</p>' => '<p>Bearbeiten Sie die Einstellungen für <span class="sync_data_highlight">%s</span>.</p>',
+// ----- intro -----
+    'Check that the correct backup archive will be updated and give the update archive a name.</p>' => '<p>Prüfen Sie, ob das richtige Backup Archiv aktualisiert wird und geben Sie dem Update Archiv einen Namen.',
+    'Choose the modules you wish to backup.' => 'Wählen Sie die Module, die gesichert werden sollen.',
+    'Create a new backup or select a backup which will be updated.' => 'Erstellen Sie ein neues Backup oder wählen Sie ein Backup aus, das aktualisiert werden soll.',
+    'Modules printed in grey text color are marked as "part of the CMS Bundle" in the database, so they are treated as part of the bundle and not marked by default.' => 'Module mit grauer Textfarbe sind in der Datenbank als "Teil des CMS-Bundles" gekennzeichnet und daher standardmäßig nicht ausgewählt.',
+    'Please check! Is the selected backup of data right one -  should it be restored?<br /><br />Define the settings for restore and then start the process.'
+        => 'Bitte prüfen Sie, ob es sich um die gewünschte Datensicherung handelt.<br /><br />Legen Sie die Art der Rücksicherung fest und starten Sie danach den Restore.',
+    'Select the backup to be used for data recovery.' => 'Wählen Sie die Datensicherung aus, die für die Herstellung von Daten verwendet werden soll.',
+    'Select the type of data backup and give the archive a name.' => 'Wählen Sie die Art der Datensicherung aus und geben Sie dem Archiv einen Namen.',
 
-    // message
+// ----- message -----
     '<p>There is nothing to do - task completed.</p>' => '<p>Es gibt nichts zu tun, Aktion beendet.</p>',
     '<p>The backup runs.</p><p>Please don\'t close this window and <span class="sync_data_highlight">wait for the status message by syncData you will get after max. %s seconds!</span></p>'
         => '<p>Die Datensicherung wird ausgeführt.</p><p>Schliessen Sie dieses Fenster nicht und <span class="sync_data_highlight">warten Sie die Statusmeldung durch syncData nach max. %s Sekunden ab</span>.</p>',
@@ -192,6 +167,8 @@ $LANG = array(
         => '<p>Die Datenwiederherstellung wird ausgeführt.</p><p>Schliessen Sie dieses Fenster nicht und <span class="sync_data_highlight">warten Sie die Statusmeldung durch syncData nach max. %s Sekunden ab</span>.</p>',
     '<p>The data restore is complete.</p><p>tables:<br /><ul><li>deleted: %d (%s)</li><li>added: %d (%s)</li><li>changed: %d (%s)</li></ul></p><p>files:<br /><ul><li>deleted: %d (%s)</li><li>added: %d (%s)</li><li>changed: %d (%s)</li></ul></p>'
         => '<p>Die Datenwiederherstellung ist abgeschlossen.</p><p>Tabellen:<br /><ul><li>gelöscht: %d (%s)</li><li>hinzugefügt: %d (%s)</li><li>geändert: %d (%s)</li></ul></p><p>Dateien:<br /><ul><li>gelöscht: %d (%s)</li><li>hinzugefügt: %d (%s)</li><li>geändert: %d (%s)</li></ul></p>',
+    '<p>The configuration record with the identifier <span class="sync_data_highlight">%s</span> has been updated.</p>'
+        => '<p>Der Konfigurationsdatensatz mit dem Bezeichner <span class="sync_data_highlight">%s</span> wurde aktualisiert.</p>',
 
 // ----- protocol -----
     'The file %s was added.' => 'Die Datei %s wurde hinzugefügt.',
@@ -212,3 +189,27 @@ $LANG = array(
 
 
 );
+
+// ----- must keep these as they are used in the class header -----
+if(!defined('sync_label_cfg_auto_exec_msec')) define('sync_label_cfg_auto_exec_msec',			'AutoExec in Millisekunden');
+if(!defined('sync_label_cfg_filemtime_diff_allowed')) define('sync_label_cfg_filemtime_diff_allowed',	'Erlaubte Zeitdifferenz');
+if(!defined('sync_label_cfg_ignore_directories')) define('sync_label_cfg_ignore_directories',		'Ignorierte Verzeichnisse');
+if(!defined('sync_label_cfg_ignore_file_extensions')) define('sync_label_cfg_ignore_file_extensions',	'Ignorierte Dateiendungen');
+if(!defined('sync_label_cfg_ignore_tables')) define('sync_label_cfg_ignore_tables',			'Ignorierte MySQL Tabellen');
+if(!defined('sync_label_cfg_limit_execution_time')) define('sync_label_cfg_limit_execution_time',	'Limit Script Ausführungsdauer');
+if(!defined('sync_label_cfg_memory_limit')) define('sync_label_cfg_memory_limit',			'Speicherbegrenzung');
+if(!defined('sync_label_cfg_max_execution_time')) define('sync_label_cfg_max_execution_time',		'Max. Script Ausführungsdauer');
+if(!defined('sync_label_cfg_server_active')) define('sync_label_cfg_server_active',			'syncData Server');
+if(!defined('sync_label_cfg_server_archive_id')) define('sync_label_cfg_server_archive_id',		'Archiv ID für die Synchronisation');
+if(!defined('sync_label_cfg_server_url')) define('sync_label_cfg_server_url',				'syncData Server URL');
+if(!defined('sync_desc_cfg_auto_exec_msec')) define('sync_desc_cfg_auto_exec_msec',			'Die Wartezeit in Millisekunden, bis syncData einen unterbrochenen Prozess automatisch fortsetzt. Beträgt der Wert <span class="sync_data_highlight">0</span>, wird die automatische Fortsetzung ausgeschaltet. Der Standardwert ist <span class="sync_data_highlight">5000</span> Millisekunden.');
+if(!defined('sync_desc_cfg_filemtime_diff_allowed')) define('sync_desc_cfg_filemtime_diff_allowed',	'Erlaubte Abweichung beim <span class="sync_data_highlight">filemtime()</span> Vergleich in Sekunden, der Standardwert ist 1 Sekunde.');
+if(!defined('sync_desc_cfg_limit_execution_time')) define('sync_desc_cfg_limit_execution_time',	'Limit der Ausführungsdauer in Sekunden. Bei Erreichen des Wertes bricht das Script die Ausführung ab, um ein Überschreiten der <span class="sync_data_highlight">maximalen Ausführungsdauer</span> zu verhindern.');
+if(!defined('sync_desc_cfg_max_execution_time')) define('sync_desc_cfg_max_execution_time',		'Maximale Ausführungsdauer der Scripts in Sekunden. Der Standardwert beträgt 30 Sekunden');
+if(!defined('sync_desc_cfg_memory_limit')) define('sync_desc_cfg_memory_limit',			'Maximaler Speicher (RAM), der syncData für die Ausführung der Scripts zur Verfügung steht. Die Angabe erfolgt in <span class="sync_data_highlight">Bytes</span> als Integer Wert oder als <a href="http://it.php.net/manual/de/faq.using.php#faq.using.shorthandbytes" target="_blank">abgekürzter Byte-Wert</a>, z.B. "256M".');
+if(!defined('sync_desc_cfg_ignore_directories')) define('sync_desc_cfg_ignore_directories',		'Verzeichnisse, die von syncData grundsätzlich ignoriert werden sollen.');
+if(!defined('sync_desc_cfg_ignore_file_extensions')) define('sync_desc_cfg_ignore_file_extensions',	'Dateien mit den angegebenen Endungen werden von syncData grundsätzlich ignoriert. Trennen Sie die Einträge mit einem Komma.');
+if(!defined('sync_desc_cfg_ignore_tables')) define('sync_desc_cfg_ignore_tables',			'MySQL Tabellen, die von syncData grundsätzlich ignoriert werden sollen. Achten Sie darauf, dass Sie die Tabellen <span class="sync_data_highlight">ohne TABLE_PREFIX</span> (lep_, wb_ o.ä.) angeben.');
+if(!defined('sync_desc_cfg_server_active')) define('sync_desc_cfg_server_active',			'Geben Sie diese syncData Installation als Server frei, wenn sich andere syncData Clients mit dieser Installation synchronisieren sollen.<br />0 = Server AUS, 1 = Server EIN');
+if(!defined('sync_desc_cfg_server_archive_id')) define('sync_desc_cfg_server_archive_id',		'Wählen Sie die <span class="sync_data_highlight">ID</span> des Sicherungsarchiv aus, das für eine Synchronisation verwendet werden soll.');
+if(!defined('sync_desc_cfg_server_url')) define('sync_desc_cfg_server_url',				'Wenn Sie diese syncData Installation als <span class="sync_data_highlight">Client</span> verwenden, geben Sie hier die vollständige URL des syncData <span class="sync_data_highlight">Server</span> an.');

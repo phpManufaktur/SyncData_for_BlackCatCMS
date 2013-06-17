@@ -1,24 +1,42 @@
 <?php
 
 /**
- * syncData
- * 
- * @author Ralf Hertsch (ralf.hertsch@phpmanufaktur.de)
- * @link http://phpmanufaktur.de
- * @copyright 2011
- * @license GNU GPL (http://www.gnu.org/licenses/gpl.html)
- * @version $Id$
- * 
- * FOR VERSION- AND RELEASE NOTES PLEASE LOOK AT INFO.TXT!
+ *   This program is free software; you can redistribute it and/or modify
+ *   it under the terms of the GNU General Public License as published by
+ *   the Free Software Foundation; either version 3 of the License, or (at
+ *   your option) any later version.
+ *
+ *   This program is distributed in the hope that it will be useful, but
+ *   WITHOUT ANY WARRANTY; without even the implied warranty of
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ *   General Public License for more details.
+ *
+ *   You should have received a copy of the GNU General Public License
+ *   along with this program; if not, see <http://www.gnu.org/licenses/>.
+ *
+ *   @author          Black Cat Development
+ *   @copyright       2013, Black Cat Development
+ *   @link            http://blackcat-cms.org
+ *   @license         http://www.gnu.org/licenses/gpl.html
+ *   @category        CAT_Core
+ *   @package         syncData
+ *
  */
 
-// include LEPTON class.secure.php to protect this file and the whole CMS!
-$class_secure = '../../framework/class.secure.php';
-if (file_exists($class_secure)) {
-    include($class_secure);
-}
-else {
-    trigger_error(sprintf("[%s] Can't include LEPTON class.secure.php!", $_SERVER['SCRIPT_NAME']), E_USER_ERROR);
+if (defined('CAT_PATH')) {
+    if (defined('CAT_VERSION')) include(CAT_PATH.'/framework/class.secure.php');
+} elseif (file_exists($_SERVER['DOCUMENT_ROOT'].'/framework/class.secure.php')) {
+    include($_SERVER['DOCUMENT_ROOT'].'/framework/class.secure.php');
+} else {
+    $subs = explode('/', dirname($_SERVER['SCRIPT_NAME']));    $dir = $_SERVER['DOCUMENT_ROOT'];
+    $inc = false;
+    foreach ($subs as $sub) {
+        if (empty($sub)) continue; $dir .= '/'.$sub;
+        if (file_exists($dir.'/framework/class.secure.php')) {
+            include($dir.'/framework/class.secure.php'); $inc = true;    break;
+        }
+    }
+    if (!$inc) trigger_error(sprintf("[ <b>%s</b> ] Can't include class.secure.php!", $_SERVER['SCRIPT_NAME']), E_USER_ERROR);
 }
 
 global $dbSyncDataCfg;
@@ -132,6 +150,30 @@ class syncDataInterface {
     public function isError() {
         return (bool) !empty($this->error);
     } // isError
+
+    /**
+     *
+     *
+     *
+     *
+     **/
+    protected function getTableConstraints() {
+        global $database;
+        $ref_tables = array();
+        // find constraints
+        $SQL = sprintf(
+            'SELECT ke.table_name child FROM information_schema.KEY_COLUMN_USAGE ke '
+            .'WHERE ke.TABLE_SCHEMA = "%s" AND ke.referenced_table_name IS NOT NULL '
+            .'ORDER BY ke.referenced_table_name;', DB_NAME);
+        if (false ===($query = $database->query($SQL))) {
+            $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, $database->get_error()));
+            return false;
+        }
+        while (false !== ($table = $query->fetchRow(MYSQL_BOTH))) {
+            $ref_tables[] = $table[0];
+        }
+        return $ref_tables;
+    }   // end function getTableConstraints()
 
     /**
     * Return a array with all tables which are used by
@@ -397,11 +439,13 @@ class syncDataInterface {
         $job_type = dbSyncDataJobs::type_undefined;
         switch ($archive_type):
         case dbSyncDataArchives::backup_type_complete:
-            $job_type = dbSyncDataJobs::type_backup_complete; break;
+            $job_type = dbSyncDataJobs::type_backup_complete;  break;
         case dbSyncDataArchives::backup_type_files:
-            $job_type = dbSyncDataJobs::type_backup_files;    break;
+            $job_type = dbSyncDataJobs::type_backup_files;     break;
         case dbSyncDataArchives::backup_type_mysql:
-            $job_type = dbSyncDataJobs::type_backup_mysql;    break;
+            $job_type = dbSyncDataJobs::type_backup_mysql;     break;
+        case dbSyncDataArchives::backup_type_selective:
+            $job_type = dbSyncDataJobs::type_backup_selective; break;
         endswitch;
 
         $data = array(
@@ -424,7 +468,8 @@ class syncDataInterface {
         $zip_file = $this->temp_path.$archive_file;
         if (file_exists($zip_file)) unlink($zip_file);
 
-        if (($job_type == dbSyncDataJobs::type_backup_complete) || ($job_type == dbSyncDataJobs::type_backup_mysql)) {
+        // DB sichern bei Typ "complete", "mysql" und "selective"
+        if (($job_type == dbSyncDataJobs::type_backup_complete) || ($job_type == dbSyncDataJobs::type_backup_mysql) || ($job_type == dbSyncDataJobs::type_backup_selective)) {
             // MySQL Sicherung
             if (!$this->backupTables($job_id)) {
                 // Fehler oder Timeout beim Sichern der Tabellen
@@ -564,9 +609,11 @@ class syncDataInterface {
         if (false === ($tables = $this->getTables())) {
             return false;
         }
-
+echo "<textarea cols=\"100\" rows=\"20\" style=\"width: 100%;\">";
+print_r( $tables );
+echo "</textarea>";
         $zip_file = $this->temp_path.$job[dbSyncDataJobs::field_archive_file];
-        $zip = CAT_Helper_Zip::getInstance($zip_file);
+        $zip = CAT_Helper_Zip::getInstance($zip_file)->config('removePath',$this->temp_path);
 
         $this->status = dbSyncDataJobs::status_undefined;
 
@@ -586,7 +633,7 @@ class syncDataInterface {
             if (!$running && ($table != $job[dbSyncDataJobs::field_next_file])) {
                 continue;
             }
-      else {
+            else {
                 $running = true;
             }
             $data = array();
@@ -609,7 +656,7 @@ class syncDataInterface {
             else {
                 $this->saveTable($table);
                 $list = array();
-                if (0 == ($list = $zip->add($this->temp_path.'sql/'.$table.'.sql', PCLZIP_OPT_ADD_PATH, 'sql', PCLZIP_OPT_REMOVE_PATH, $this->temp_path.'sql/'))) {
+                if (0 == ($list = $zip->add($this->temp_path.'sql/'.$table.'.sql', '', $this->temp_path))) {
                     // Fehler beim Hinzufuegen der Datei
                     $data = array(
                         dbSyncDataFiles::field_action                    => dbSyncDataFiles::action_add,
@@ -730,7 +777,7 @@ class syncDataInterface {
         $archive = $archive[0];
 
         $zip_file = $this->temp_path.$job[dbSyncDataJobs::field_archive_file];
-        $zip = CAT_Helper_Zip::getInstance($zip_file);
+        $zip = CAT_Helper_Zip::getInstance($zip_file)->config('removePath',$this->temp_path);
 
         // Dateiliste zum Archiv hinzufuegen
         if (($job[dbSyncDataJobs::field_type] == dbSyncDataJobs::type_backup_complete) ||
@@ -865,7 +912,7 @@ class syncDataInterface {
         $job      = $job[0];
         $running  = (empty($job[dbSyncDataJobs::field_next_file])) ? true : false;
         $zip_file = $this->temp_path.$job[dbSyncDataJobs::field_archive_file];
-        $zip      = CAT_Helper_Zip::getInstance($zip_file);
+        $zip      = CAT_Helper_Zip::getInstance($zip_file)->config('removePath',$this->temp_path);
 
         $this->status = dbSyncDataJobs::status_undefined;
 
@@ -1022,7 +1069,7 @@ AuthType Basic
         // Restore vorbereiten
         if (!file_exists($this->temp_path)) {
             if (!mkdir($this->temp_path, 0755, true)) {
-                $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, sprintf($admin->lang->translate('<p>The directory <span class="sync_data_highlight">%s</span> could not be created!</p>'), str_replace(CAT_PATH, '', $this->temp_path))));
+                $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, sprintf($admin->lang()->translate('<p>The directory <span class="sync_data_highlight">%s</span> could not be created!</p>'), str_replace(CAT_PATH, '', $this->temp_path))));
                 return false;
             }
             else
@@ -1038,7 +1085,7 @@ AuthType Basic
         }
 
         // ZIP initialisieren und Dateiliste auslesen
-        $zip = CAT_Helper_Zip::getInstance($backup_archive);
+        $zip = CAT_Helper_Zip::getInstance($backup_archive)->config('removePath',$this->temp_path);
         $list = array();
         if (0 == ($list = $zip->listContent())) {
             $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, $zip->errorInfo(true)));
@@ -1047,7 +1094,7 @@ AuthType Basic
 
         // Liste des Archivs im temporaeren Verzeichnis speichern
         if (!file_put_contents($this->temp_path.self::archive_list, serialize($list))) {
-            $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, sprintf($admin->lang->translate('<p>Error writing file <span class="sync_data_highlight">%s</span>.</p>'), $this->temp_path.self::archive_list)));
+            $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, sprintf($admin->lang()->translate('<p>Error writing file <span class="sync_data_highlight">%s</span>.</p>'), $this->temp_path.self::archive_list)));
             return false;
         }
 
@@ -1055,7 +1102,7 @@ AuthType Basic
       $restore_info = $this->array_search($list, 'filename', self::sync_data_ini);
       if (count($restore_info) != 1) {
           // sync_data.ini nicht gefunden!
-          $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, sprintf($admin->lang->translate('<p>The archive <span class="sync_data_highlight">%s</span> is not a valid syncData archive - missing file <span class="sync_data_highlight">sync_data.ini</span>!</p>'), basename($backup_archive))));
+          $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, sprintf($admin->lang()->translate('<p>The archive <span class="sync_data_highlight">%s</span> is not a valid syncData archive - missing file <span class="sync_data_highlight">sync_data.ini</span>!</p>'), basename($backup_archive))));
           return false;
       }
 
@@ -1095,12 +1142,12 @@ AuthType Basic
 
         // existiert die sync_data.ini im /temp Verzeichnis?
         if (!file_exists($this->temp_path.self::sync_data_ini)) {
-            $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, sprintf($admin->lang->translate('<p>The file <span class="sync_data_highlight">%s</span> doesn´t exist!</p>'), self::sync_data_ini)));
+            $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, sprintf($admin->lang()->translate('<p>The file <span class="sync_data_highlight">%s</span> doesn´t exist!</p>'), self::sync_data_ini)));
             return false;
         }
         // sync_data.ini auslesen
         if (false === ($ini_data = parse_ini_file($this->temp_path.self::sync_data_ini, true))) {
-            $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, sprintf($admin->lang->translate('<p>The file <span class="sync_data_highlight">%s</span> couldn\'t be read!</p>'), str_replace(CAT_PATH, '', $this->temp_path.self::sync_data_ini))));
+            $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, sprintf($admin->lang()->translate('<p>The file <span class="sync_data_highlight">%s</span> couldn\'t be read!</p>'), str_replace(CAT_PATH, '', $this->temp_path.self::sync_data_ini))));
             return false;
         }
         // neuen JOB fuer den Restore anlegen
@@ -1276,14 +1323,14 @@ AuthType Basic
             return false;
         }
         if (count($job) < 1) {
-            $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, sprintf($admin->lang->translate('<p>Can not find a job with the synData ID <span class="sync_data_highlight">%s</span>!</p>'), $job_id)));
+            $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, sprintf($admin->lang()->translate('<p>Can not find a job with the synData ID <span class="sync_data_highlight">%s</span>!</p>'), $job_id)));
             return false;
         }
         $job = $job[0];
 
         // existiert die Dateiliste im /temp Verzeichnis?
         if (false === ($list = unserialize(file_get_contents($this->temp_path.self::archive_list)))) {
-            $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, sprintf($admin->lang->translate('<p>The file <span class="sync_data_highlight">%s</span> couldn\'t be read!</p>'), $this->temp_path.self::archive_list)));
+            $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, sprintf($admin->lang()->translate('<p>The file <span class="sync_data_highlight">%s</span> couldn\'t be read!</p>'), $this->temp_path.self::archive_list)));
             return false;
         }
 
@@ -1291,23 +1338,23 @@ AuthType Basic
         $restore_info = $this->array_search($list, 'filename', 'sql/', true);
         if (count($restore_info) < 1) {
             // keine MySQL Dateien gefunden!
-            $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, $admin->lang->translate('<p>The file list doesn\'t contain MySQL files!</p>')));
+            $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, $admin->lang()->translate('<p>The file list doesn\'t contain MySQL files!</p>')));
             return false;
         }
 
         // existiert die sync_data.ini im /temp Verzeichnis?
         if (!file_exists($this->temp_path.self::sync_data_ini)) {
-            $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, sprintf($admin->lang->translate('<p>The file <span class="sync_data_highlight">%s</span> doesn´t exist!</p>'), self::sync_data_ini)));
+            $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, sprintf($admin->lang()->translate('<p>The file <span class="sync_data_highlight">%s</span> doesn´t exist!</p>'), self::sync_data_ini)));
             return false;
         }
         // sync_data.ini auslesen
         if (false === ($ini_data = parse_ini_file($this->temp_path.self::sync_data_ini, true))) {
-            $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, sprintf($admin->lang->translate('<p>The file <span class="sync_data_highlight">%s</span> couldn\'t be read!</p>'), str_replace(CAT_PATH, '', $this->temp_path.self::sync_data_ini))));
+            $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, sprintf($admin->lang()->translate('<p>The file <span class="sync_data_highlight">%s</span> couldn\'t be read!</p>'), str_replace(CAT_PATH, '', $this->temp_path.self::sync_data_ini))));
             return false;
         }
 
         // ZIP initialisieren
-        $zip     = CAT_Helper_Zip::getInstance($job[dbSyncDataJobs::field_archive_file]);
+        $zip     = CAT_Helper_Zip::getInstance($job[dbSyncDataJobs::field_archive_file])->config('removePath',$this->temp_path);
         $running = (empty($job[dbSyncDataJobs::field_next_file])) ? true : false;
 
         // zu ignorierende Tabellen in ein Array schreiben
@@ -1330,7 +1377,7 @@ AuthType Basic
                 if (in_array($table, $ignore_tables)) continue;
                 if (!in_array($table, $check_tables)) {
                     // delete tables
-                    $SQL = sprintf("DROP TABLE IF EXISTS %s", $table);
+                    $SQL = sprintf("SET foreign_key_checks = 0; DROP TABLE IF EXISTS %s; SET foreign_key_checks = 1;", $table);
                     $database->query($SQL);
                     if ($database->is_error()) {
                         $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, $database->get_error()));
@@ -1362,7 +1409,7 @@ AuthType Basic
                 $delete_table = str_replace('.sql', '', $table);
                 //$delete_table = str_replace($ini_data[syncDataInterface::section_general][self::used_table_prefix], TABLE_PREFIX, $delete_table);
                 $delete_table = TABLE_PREFIX.substr($delete_table,strlen($ini_data[syncDataInterface::section_general][self::used_table_prefix]));
-                $SQL = sprintf("DROP TABLE IF EXISTS %s", $delete_table);
+                $SQL = sprintf("SET foreign_key_checks = 0; DROP TABLE IF EXISTS %s; SET foreign_key_checks = 1;", $delete_table);
                 $database->query($SQL);
                 if ($database->is_error()) {
                     $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, $database->get_error()));
@@ -1429,11 +1476,8 @@ AuthType Basic
                 $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, $zip->errorInfo(true)));
                 return false;
             }
-echo "<textarea cols=\"100\" rows=\"20\" style=\"width: 100%;\">";
-print_r( $list );
-echo "</textarea>";
 
-          if ((($job[dbSyncDataJobs::field_replace_table_prefix] == 1) && ($ini_data[syncDataInterface::section_general][self::used_table_prefix] != TABLE_PREFIX)) ||
+            if ((($job[dbSyncDataJobs::field_replace_table_prefix] == 1) && ($ini_data[syncDataInterface::section_general][self::used_table_prefix] != TABLE_PREFIX)) ||
                   (($job[dbSyncDataJobs::field_replace_wb_url] == 1) && ($ini_data[syncDataInterface::section_general][self::used_wb_url] != CAT_URL))) {
               // TABLE_PREFIX und/oder CAT_URL muessen geaendert werden, Tabelle temporaer schreiben und aktualisieren
               $sql_file = file_get_contents($kitTools->correctBackslashToSlash($this->restore_path.$table['filename']));
@@ -1473,30 +1517,35 @@ echo "</textarea>";
           if ($replace_table) {
               $SQL_file = file($this->temp_path.'restore/'.$table['filename']);
               foreach ($SQL_file as $SQL) {
+                  $database->query('SET foreign_key_checks = 0;');
                   $database->query($SQL);
                   if ($database->is_error()) {
                       // Fehler bei der Ruecksicherung
                       $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, $database->get_error()));
-                      $dbSyncDataProtocol->addEntry($job[dbSyncDataJobs::field_archive_id],
-                                                                                  $job[dbSyncDataJobs::field_archive_number],
-                                                                                  $job_id,
-                                                                                  $this->getError(),
-                                                                                  $replace_table_name,
-                                                                                  filesize($this->temp_path.'restore/'.$table['filename']),
-                                                                                  $table_exists ? dbSyncDataProtocol::action_mysql_replace : dbSyncDataProtocol::action_mysql_add,
-                                                                                  dbSyncDataProtocol::status_error);
+                      $dbSyncDataProtocol->addEntry(
+                          $job[dbSyncDataJobs::field_archive_id],
+                          $job[dbSyncDataJobs::field_archive_number],
+                          $job_id,
+                          $this->getError(),
+                          $replace_table_name,
+                          filesize($this->temp_path.'restore/'.$table['filename']),
+                          $table_exists ? dbSyncDataProtocol::action_mysql_replace : dbSyncDataProtocol::action_mysql_add,
+                          dbSyncDataProtocol::status_error);
+                      $database->query('SET foreign_key_checks = 1;');
                       return false;
                   }
+                  $database->query('SET foreign_key_checks = 1;');
               }
               // erfolgreich wieder hergestellt
-              $dbSyncDataProtocol->addEntry($job[dbSyncDataJobs::field_archive_id],
-                                                                          $job[dbSyncDataJobs::field_archive_number],
-                                                                          $job_id,
-                                                                          $table_exists ? sprintf(sync_protocol_table_replace, $replace_table_name) : sprintf(sync_protocol_table_add, $replace_table_name),
-                                                                          $replace_table_name,
-                                                                          filesize($this->temp_path.'restore/'.$table['filename']),
-                                                                          $table_exists ? dbSyncDataProtocol::action_mysql_replace : dbSyncDataProtocol::action_mysql_add,
-                                                                          dbSyncDataProtocol::status_ok);
+              $dbSyncDataProtocol->addEntry(
+                  $job[dbSyncDataJobs::field_archive_id],
+                  $job[dbSyncDataJobs::field_archive_number],
+                  $job_id,
+                  $table_exists ? sprintf($admin->lang()->translate('The table %s has been replaced.'), $replace_table_name) : sprintf($admin->lang()->translate('The table %s has been added.'), $replace_table_name),
+                  $replace_table_name,
+                  filesize($this->temp_path.'restore/'.$table['filename']),
+                  $table_exists ? dbSyncDataProtocol::action_mysql_replace : dbSyncDataProtocol::action_mysql_add,
+                  dbSyncDataProtocol::status_ok);
           }
       }
         // Restore abgeschlossen
@@ -1525,36 +1574,36 @@ echo "</textarea>";
             return false;
         }
         if (count($job) < 1) {
-            $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, sprintf($admin->lang->translate('<p>Can not find a job with the synData ID <span class="sync_data_highlight">%s</span>!</p>'), $job_id)));
+            $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, sprintf($admin->lang()->translate('<p>Can not find a job with the synData ID <span class="sync_data_highlight">%s</span>!</p>'), $job_id)));
             return false;
         }
         $job = $job[0];
 
         // existiert die Dateiliste im /temp Verzeichnis?
         if (false === ($list = unserialize(file_get_contents($this->temp_path.self::archive_list)))) {
-            $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, sprintf($admin->lang->translate('<p>The file <span class="sync_data_highlight">%s</span> couldn\'t be read!</p>'), $this->temp_path.self::archive_list)));
+            $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, sprintf($admin->lang()->translate('<p>The file <span class="sync_data_highlight">%s</span> couldn\'t be read!</p>'), $this->temp_path.self::archive_list)));
             return false;
         }
         $restore_info = $this->array_search($list, 'filename', 'files/', true);
         if (count($restore_info) < 1) {
             // keine Dateien gefunden!
-            $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, $admin->lang->translate('<p>The file list contains no files for a restore!</p>')));
+            $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, $admin->lang()->translate('<p>The file list contains no files for a restore!</p>')));
             return false;
         }
 
         // existiert die sync_data.ini im /temp Verzeichnis?
         if (!file_exists($this->temp_path.self::sync_data_ini)) {
-            $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, sprintf($admin->lang->translate('<p>The file <span class="sync_data_highlight">%s</span> doesn´t exist!</p>'), self::sync_data_ini)));
+            $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, sprintf($admin->lang()->translate('<p>The file <span class="sync_data_highlight">%s</span> doesn´t exist!</p>'), self::sync_data_ini)));
             return false;
         }
         // sync_data.ini auslesen
         if (false === ($ini_data = parse_ini_file($this->temp_path.self::sync_data_ini, true))) {
-            $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, sprintf($admin->lang->translate('<p>The file <span class="sync_data_highlight">%s</span> couldn\'t be read!</p>'), str_replace(CAT_PATH, '', $this->temp_path.self::sync_data_ini))));
+            $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, sprintf($admin->lang()->translate('<p>The file <span class="sync_data_highlight">%s</span> couldn\'t be read!</p>'), str_replace(CAT_PATH, '', $this->temp_path.self::sync_data_ini))));
             return false;
         }
 
         // ZIP initialisieren
-        $zip     = CAT_Helper_Zip::getInstance($job[dbSyncDataJobs::field_archive_file]);
+        $zip     = CAT_Helper_Zip::getInstance($job[dbSyncDataJobs::field_archive_file])->config('removePath',$this->temp_path);
         $running = (empty($job[dbSyncDataJobs::field_next_file])) ? true : false;
 
         $ig_dir = $dbSyncDataCfg->getValue(dbSyncDataCfg::cfgIgnoreDirectories);
@@ -1888,7 +1937,7 @@ echo "FILE -$filename- -", file_exists(CAT_PATH.'/'.$filename), "-<br />";
         $data = array(
             dbSyncDataArchives::field_archive_date        => date('Y-m-d H:i:s'),
             dbSyncDataArchives::field_archive_id            => $archive_id,
-            dbSyncDataArchives::field_archive_name        => (!empty($update_name)) ? $update_name : $admin->lang->translate(sprintf('update from %s', date(sync_cfg_datetime_str))),
+            dbSyncDataArchives::field_archive_name        => (!empty($update_name)) ? $update_name : $admin->lang()->translate(sprintf('update from %s', date(sync_cfg_datetime_str))),
             dbSyncDataArchives::field_archive_number    => $new_archive_number,
             dbSyncDataArchives::field_archive_type        => $old_archive[dbSyncDataArchives::field_archive_type],
             dbSyncDataArchives::field_status                    => dbSyncDataArchives::status_active
@@ -2010,13 +2059,13 @@ echo "FILE -$filename- -", file_exists(CAT_PATH.'/'.$filename), "-<br />";
         $archive = $archive[0];
 
         $zip_file = $this->temp_path.$job[dbSyncDataJobs::field_archive_file];
-        $zip = CAT_Helper_Zip::getInstance($zip_file);
+        $zip = CAT_Helper_Zip::getInstance($zip_file)->config('removePath',$this->temp_path);
 
         // Dateiliste zum Archiv hinzufuegen
         if (($job[dbSyncDataJobs::field_type] == dbSyncDataJobs::type_backup_complete) ||
                 ($job[dbSyncDataJobs::field_type] == dbSyncDataJobs::type_backup_files)) {
             $list = array();
-            if (0 == ($list = $zip->config('removePath',$this->temp_path)->add($this->temp_path.self::file_list))) {
+            if (0 == ($list = $zip->add($this->temp_path.self::file_list))) {
                 $this->setError(sprintf('[%s - %s] %s', __METHOD__, __LINE__, $zip->errorInfo(true)));
                 return false;
             }
@@ -2168,7 +2217,7 @@ echo "FILE -$filename- -", file_exists(CAT_PATH.'/'.$filename), "-<br />";
             return false;
         }
         $zip_file = $this->temp_path.$job[dbSyncDataJobs::field_archive_file];
-        $zip = CAT_Helper_Zip::getInstance($zip_file);
+        $zip = CAT_Helper_Zip::getInstance($zip_file)->config('removePath',$this->temp_path);
 
         $this->status = dbSyncDataJobs::status_undefined;
 
@@ -2410,7 +2459,7 @@ echo "FILE -$filename- -", file_exists(CAT_PATH.'/'.$filename), "-<br />";
         $running = (empty($job[dbSyncDataJobs::field_next_file])) ? true : false;
 
         $zip_file = $this->temp_path.$job[dbSyncDataJobs::field_archive_file];
-        $zip = CAT_Helper_Zip::getInstance($zip_file);
+        $zip = CAT_Helper_Zip::getInstance($zip_file)->config('removePath',$this->temp_path);
 
         $this->status = dbSyncDataJobs::status_undefined;
 

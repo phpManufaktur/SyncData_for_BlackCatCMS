@@ -1,26 +1,42 @@
 <?php
 
 /**
- * syncData
+ *   This program is free software; you can redistribute it and/or modify
+ *   it under the terms of the GNU General Public License as published by
+ *   the Free Software Foundation; either version 3 of the License, or (at
+ *   your option) any later version.
  *
- * @author Ralf Hertsch (ralf.hertsch@phpmanufaktur.de)
- * @link http://phpmanufaktur.de
- * @copyright 2011
- * @license GNU GPL (http://www.gnu.org/licenses/gpl.html)
- * @version $Id$
+ *   This program is distributed in the hope that it will be useful, but
+ *   WITHOUT ANY WARRANTY; without even the implied warranty of
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ *   General Public License for more details.
  *
- * FOR VERSION- AND RELEASE NOTES PLEASE LOOK AT INFO.TXT!
+ *   You should have received a copy of the GNU General Public License
+ *   along with this program; if not, see <http://www.gnu.org/licenses/>.
+ *
+ *   @author          Black Cat Development
+ *   @copyright       2013, Black Cat Development
+ *   @link            http://blackcat-cms.org
+ *   @license         http://www.gnu.org/licenses/gpl.html
+ *   @category        CAT_Modules
+ *   @package         syncData
+ *
  */
 
-// include LEPTON class.secure.php to protect this file and the whole CMS!
-$class_secure = '../../framework/class.secure.php';
-if (file_exists($class_secure))
-{
-    include($class_secure);
-}
-else
-{
-    trigger_error(sprintf("[%s] Can't include LEPTON class.secure.php!", $_SERVER['SCRIPT_NAME']), E_USER_ERROR);
+if (defined('CAT_PATH')) {
+    if (defined('CAT_VERSION')) include(CAT_PATH.'/framework/class.secure.php');
+} elseif (file_exists($_SERVER['DOCUMENT_ROOT'].'/framework/class.secure.php')) {
+    include($_SERVER['DOCUMENT_ROOT'].'/framework/class.secure.php');
+} else {
+    $subs = explode('/', dirname($_SERVER['SCRIPT_NAME']));    $dir = $_SERVER['DOCUMENT_ROOT'];
+    $inc = false;
+    foreach ($subs as $sub) {
+        if (empty($sub)) continue; $dir .= '/'.$sub;
+        if (file_exists($dir.'/framework/class.secure.php')) {
+            include($dir.'/framework/class.secure.php'); $inc = true;    break;
+        }
+    }
+    if (!$inc) trigger_error(sprintf("[ <b>%s</b> ] Can't include class.secure.php!", $_SERVER['SCRIPT_NAME']), E_USER_ERROR);
 }
 
 class dbSyncDataCfg extends dbConnectLE
@@ -515,15 +531,22 @@ class dbSyncDataJobs extends dbConnectLE
     const type_backup_complete = 2;
     const type_backup_mysql = 4;
     const type_backup_files = 8;
+    const type_backup_selective = 128;
     const type_restore_complete = 16;
     const type_restore_mysql = 32;
     const type_restore_files = 64;
+    const type_restore_selective = 256;
 
     const mode_replace_all = 1;
     const mode_changed_date_size = 2;
     const mode_changed_binary = 4;
 
-    public $job_type_array = array(self::type_backup_complete => 'complete (database and files)', self::type_backup_mysql => 'only database (MySQL)', self::type_backup_files => 'only files');
+    public $job_type_array = array(
+        self::type_backup_complete => 'complete (database and files)',
+        self::type_backup_mysql => 'only database (MySQL)',
+        self::type_backup_files => 'only files',
+        self::type_backup_selective => 'selective (database and selected modules)',
+    );
 
 
     const status_undefined = 1;
@@ -608,10 +631,20 @@ class dbSyncDataArchives extends dbConnectLE
     const backup_type_complete = 1;
     const backup_type_mysql = 2;
     const backup_type_files = 4;
+    const backup_type_selective = 8;
 
-    public $backup_type_array = array(array('key' => self::backup_type_complete, 'value' => 'complete (database and files)'), array('key' => self::backup_type_mysql, 'value' => 'only database (MySQL)'), array('key' => self::backup_type_files, 'value' => 'only files'));
-
-    public $backup_type_array_text = array(self::backup_type_complete => 'complete (database and files)', self::backup_type_mysql => 'only database (MySQL)', self::backup_type_files => 'only files');
+    public $backup_type_array = array(
+        array('key' => self::backup_type_complete , 'value' => 'complete (database and files)'),
+        array('key' => self::backup_type_mysql    , 'value' => 'only database (MySQL)'),
+        array('key' => self::backup_type_files    , 'value' => 'only files'),
+        array('key' => self::backup_type_selective, 'value' => 'selective (database and selected modules)'),
+    );
+	public $backup_type_array_text = array(
+		self::backup_type_complete  => 'complete (database and files)',
+		self::backup_type_mysql     => 'only database (MySQL)',
+		self::backup_type_files     => 'only files',
+        self::backup_type_selective => 'selective (database and selected modules)',
+	);
 
     const status_active = 1;
     const status_deleted = 2;

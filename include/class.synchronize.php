@@ -1,79 +1,62 @@
 <?php
+
 /**
- * syncData
- * 
- * @author Ralf Hertsch (ralf.hertsch@phpmanufaktur.de)
- * @link http://phpmanufaktur.de
- * @copyright 2011
- * @license GNU GPL (http://www.gnu.org/licenses/gpl.html)
- * @version $Id$
- */ 
+ *   This program is free software; you can redistribute it and/or modify
+ *   it under the terms of the GNU General Public License as published by
+ *   the Free Software Foundation; either version 3 of the License, or (at
+ *   your option) any later version.
+ *
+ *   This program is distributed in the hope that it will be useful, but
+ *   WITHOUT ANY WARRANTY; without even the implied warranty of
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ *   General Public License for more details.
+ *
+ *   You should have received a copy of the GNU General Public License
+ *   along with this program; if not, see <http://www.gnu.org/licenses/>.
+ *
+ *   @author          Black Cat Development
+ *   @copyright       2013, Black Cat Development
+ *   @link            http://blackcat-cms.org
+ *   @license         http://www.gnu.org/licenses/gpl.html
+ *   @category        CAT_Core
+ *   @package         syncData
+ *
+ */
 
-// include LEPTON class.secure.php to protect this file and the whole CMS!
-$class_secure = '../../framework/class.secure.php';
-if (file_exists($class_secure)) {
-	include($class_secure);
+if (defined('CAT_PATH')) {
+    if (defined('CAT_VERSION')) include(CAT_PATH.'/framework/class.secure.php');
+} elseif (file_exists($_SERVER['DOCUMENT_ROOT'].'/framework/class.secure.php')) {
+    include($_SERVER['DOCUMENT_ROOT'].'/framework/class.secure.php');
+} else {
+    $subs = explode('/', dirname($_SERVER['SCRIPT_NAME']));    $dir = $_SERVER['DOCUMENT_ROOT'];
+    $inc = false;
+    foreach ($subs as $sub) {
+        if (empty($sub)) continue; $dir .= '/'.$sub;
+        if (file_exists($dir.'/framework/class.secure.php')) {
+            include($dir.'/framework/class.secure.php'); $inc = true;    break;
+        }
+    }
+    if (!$inc) trigger_error(sprintf("[ <b>%s</b> ] Can't include class.secure.php!", $_SERVER['SCRIPT_NAME']), E_USER_ERROR);
 }
-else {
-	trigger_error(sprintf("[ <b>%s</b> ] Can't include LEPTON class.secure.php!", $_SERVER['SCRIPT_NAME']), E_USER_ERROR);
-}
-
-// include language file for syncData
-if(!file_exists(CAT_PATH .'/modules/'.basename(dirname(__FILE__)).'/languages/' .LANGUAGE .'.php')) {
-	require_once(CAT_PATH .'/modules/'.basename(dirname(__FILE__)).'/languages/EN.php'); 
-	if (!defined('SYNC_DATA_LANGUAGE')) define('SYNC_DATA_LANGUAGE', 'EN');
-}
-else {
-	require_once(CAT_PATH .'/modules/'.basename(dirname(__FILE__)).'/languages/' .LANGUAGE .'.php'); 
-	if (!defined('SYNC_DATA_LANGUAGE')) define('SYNC_DATA_LANGUAGE', LANGUAGE);
-}
-
-if (!class_exists('Dwoo')) {
-	// try to load regular Dwoo
-	if (file_exists(CAT_PATH.'/modules/dwoo/include.php')) {
-		require_once CAT_PATH.'/modules/dwoo/include.php';
-	}
-	else {
-		// load Dwoo from include directory
-		require_once CAT_PATH.'/modules/'.basename(dirname(__FILE__)).'/include/dwoo/dwooAutoload.php';
-	}
-}
-
-$cache_path = CAT_PATH.'/temp/cache';
-if (!file_exists($cache_path)) mkdir($cache_path, 0777, true);
-$compiled_path = CAT_PATH.'/temp/compiled';
-if (!file_exists($compiled_path)) mkdir($compiled_path, 0777, true);
 
 global $parser;
-if (!is_object($parser)) $parser = new Dwoo($compiled_path, $cache_path);
 
-if (!class_exists('dbconnectle')) {
-	// try to load regular dbConnect_LE
-	if (file_exists(CAT_PATH.'/modules/dbconnect_le/include.php')) {
-		require_once CAT_PATH.'/modules/dbconnect_le/include.php';
-	}
-	else {
-		// load dbConnect_LE from include directory
-		require_once CAT_PATH.'/modules/'.basename(dirname(__FILE__)).'/include/dbconnect_le/include.php';
-	}
+if (!class_exists('dbconnectle'))
+{
+    // load dbConnect_LE from include directory
+    require_once dirname(__FILE__) . '/dbconnect_le/include.php';
+}
+if (!class_exists('kitToolsLibrary'))
+{
+    // load embedded kitTools library
+    require_once dirname(__FILE__) . '/class.tools.php';
 }
 
-if (!class_exists('kitToolsLibrary')) {
-	// try to load required kitTools
-	if (file_exists(CAT_PATH.'/modules/kit_tools/class.tools.php')) {
-		require_once CAT_PATH.'/modules/kit_tools/class.tools.php';
-	}
-	else {
-		// load embedded kitTools library
-		require_once CAT_PATH.'/modules/'.basename(dirname(__FILE__)).'/class.tools.php';
-	}
-}
 global $kitTools;
-if (!is_object($kitTools)) $kitTools = new kitToolsLibrary();
+if (!is_object($kitTools))
+    $kitTools = new kitToolsLibrary();
 
-require_once CAT_PATH.'/modules/pclzip/pclzip.lib.php';
-
-require_once CAT_PATH.'/modules/'.basename(dirname(__FILE__)).'/class.syncdata.php';
+require_once dirname(__FILE__).'/class.syncdata.php';
 
 global $dbSyncDataCfg;
 if (!is_object($dbSyncDataCfg)) $dbSyncDataCfg = new dbSyncDataCfg();
@@ -83,7 +66,7 @@ global $dbSyncDataArchive;
 if (!is_object($dbSyncDataArchive)) $dbSyncDataArchive = new dbSyncDataArchives();
 
 require_once CAT_PATH.'/framework/functions.php';
-require_once CAT_PATH.'/modules/'.basename(dirname(__FILE__)).'/class.interface.php';
+require_once dirname(__FILE__).'/class.interface.php';
 
 
 class syncServer {
@@ -422,15 +405,18 @@ class syncClient {
 	public function __construct() {
 		global $kitTools;
 		global $dbSyncDataCfg;
+        global $wb;
+
+        if (!defined('SYNC_DATA_LANGUAGE')) define('SYNC_DATA_LANGUAGE', $wb->lang->getLang());
 		
 		$url = '';
 		$_SESSION['FRONTEND'] = true;	
 		$kitTools->getPageLinkByPageID(PAGE_ID, $url);
 		$this->page_link = $url; 
-		$this->template_path = CAT_PATH.'/modules/'.basename(dirname(__FILE__)).'/templates/'.$this->params[self::param_preset].'/'.SYNC_DATA_LANGUAGE.'/' ;
+		$this->template_path = dirname(__FILE__).'/../templates/'.$this->params[self::param_preset].'/'.SYNC_DATA_LANGUAGE.'/' ;
 		date_default_timezone_set(sync_cfg_time_zone);
 		$this->temp_path = CAT_PATH.'/temp/';
-		$this->image_url = CAT_URL.'/modules/'.basename(dirname(__FILE__)).'/images/';	
+		$this->image_url = CAT_URL.'/modules/syncData/images/';
 		
 		$this->memory_limit = $dbSyncDataCfg->getValue(dbSyncDataCfg::cfgMemoryLimit);
 		ini_set("memory_limit",$this->memory_limit);
@@ -561,10 +547,11 @@ class syncClient {
 	 * @return BOOL
 	 */
 	public function setParams($params = array()) {
+        global $wb;
 		$this->params = $params;
-		$this->template_path = CAT_PATH.'/modules/'.basename(dirname(__FILE__)).'/templates/'.$this->params[self::param_preset].'/'.SYNC_DATA_LANGUAGE.'/';
+		$this->template_path = dirname(__FILE__).'/../templates/default/'.$this->params[self::param_preset].'/'.SYNC_DATA_LANGUAGE.'/';
 		if (!file_exists($this->template_path)) {
-			$this->setError(sprintf(sync_error_preset_not_exists, '/modules/'.basename(dirname(__FILE__)).'/templates/'.$this->params[self::param_preset].'/'.SYNC_DATA_LANGUAGE.'/'));
+			$this->setError(sprintf($wb->lang->translate('<p>The preset directory <span class="sync_data_highlight">%s</span> does not exist, the necessary templates can not be loaded!</p>'), '/modules/'.basename(dirname(__FILE__)).'/templates/default/'.$this->params[self::param_preset].'/'.SYNC_DATA_LANGUAGE.'/'));
 			return false;
 		}
 		return true;

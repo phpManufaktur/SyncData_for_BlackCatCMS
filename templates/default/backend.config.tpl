@@ -37,6 +37,11 @@
             {/foreach}
           </select>
         </td>
+        {elseif $item.field == "cfgServerActive"}
+        <td class="sync_cfg_value">
+            <input type="radio" name="{$item.name}" value="1" {if $item.value==1}checked="checked"{/if} /> ein
+            <input type="radio" name="{$item.name}" value="0" {if $item.value==0}checked="checked"{/if} /> aus
+        </td>
         {else}
         <td class="sync_cfg_value"><input type="text" name="{$item.name}" value="{$item.value}" /></td>
         {/if}
